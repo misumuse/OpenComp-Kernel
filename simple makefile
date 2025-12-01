@@ -1,0 +1,27 @@
+CC = x86_64-elf-gcc
+LD = x86_64-elf-ld
+CFLAGS = -O2 -ffreestanding -nostdlib -fno-builtin -Wall -Wextra -mno-red-zone -std=gnu11
+LDFLAGS = -T linker.ld
+
+OBJS = kernel.o start.o
+
+all: tinykernel.bin
+
+kernel.o: kernel.c
+	$(CC) $(CFLAGS) -c kernel.c -o kernel.o
+
+start.o: start.S
+	$(CC) $(CFLAGS) -c start.S -o start.o
+
+tinykernel.bin: $(OBJS) linker.ld
+	$(LD) $(LDFLAGS) -o tinykernel.elf $(OBJS)
+	# create grub ISO (requires grub-mkrescue)
+	mkdir -p iso/boot/grub
+	cp tinykernel.elf iso/boot/kernel.elf
+	printf 'set timeout=1\nmenuentry "TinyKernel" { multiboot /boot/kernel.elf }\n' > iso/boot/grub/grub.cfg
+	grub-mkrescue -o tinykernel.iso iso
+	qemu-system-x86_64 -cdrom tinykernel.iso -m 256M
+
+clean:
+	rm -f *.o *.elf tinykernel.iso
+	rm -rf iso
