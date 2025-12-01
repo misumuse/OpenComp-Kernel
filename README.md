@@ -1,0 +1,1 @@
+OpenComp is an ambitious kernel project meant not to rival, but help development of other kernels, such as GNU/Linux and BSD. It features a small, robust set of features, and expandable features. Documentation will be written as contributors assist development.
