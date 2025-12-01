@@ -1,8 +1,8 @@
 /* kernel.c
  *
  * Tiny pluggable-kernel example (educational).
- * Copyright (C) 2025 Braylon Jones / you
- * Licensed under GNU GPLv3 - include the full COPYING file in project root.
+ * Copyright (C) 2025 B."Nova" J.
+ * Licensed under GNU GPLv2
  *
  * What it does:
  *  - minimal VGA text output
@@ -10,16 +10,14 @@
  *  - an example component included at the bottom (hello_component)
  *
  * Note: This is a minimal 64-bit kernel meant to be loaded by GRUB (multiboot2).
- * It's intentionally small for learning and extension.
  */
 
 #include <stdint.h>
 #include <stddef.h>
 
 /* ------------------------------
-   Simple GPL-style header note
+   Placeholder
    ------------------------------
-   Include the full text of the GNU GPLv3 in a file named COPYING in your repo.
 */
 
 #define VGA_WIDTH 80
@@ -173,6 +171,6 @@ __attribute__((section(".comps"))) struct component *p_hello_component = &hello_
 /* ------------------------------
    Minimal stubs for required symbols
    ------------------------------
-   For this tiny example we don't need full libc. Define minimal symbols.
+   Nova Says: For this we don't need full libc. Contributors, add as needed. Define minimal symbols.
 */
 void _start_crt_stub(void) { kernel_main(); for(;;); }
