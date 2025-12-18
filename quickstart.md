@@ -11,15 +11,22 @@ Get OpenComp up and running in minutes!
 sudo apt-get update
 sudo apt-get install -y build-essential grub-pc-bin xorriso qemu-system-x86
 
-# Install cross-compiler (you may need to build from source)
-# Quick option: use the system compiler for testing
-sudo apt-get install gcc
+# Option 1: Use system GCC (simpler, works for most cases)
+# Already installed with build-essential
+
+# Option 2: Install dedicated cross-compiler (optional, more robust)
+sudo apt-get install gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu
 ```
 
 ### Arch Linux
 
 ```bash
+# Basic tools
 sudo pacman -S base-devel grub xorriso qemu-system-x86
+
+# System GCC is included
+# Optional: Install cross-compiler from AUR
+yay -S x86_64-elf-gcc x86_64-elf-binutils
 ```
 
 ### macOS
@@ -31,6 +38,9 @@ sudo pacman -S base-devel grub xorriso qemu-system-x86
 # Install dependencies
 brew install x86_64-elf-gcc
 brew install grub xorriso qemu
+
+# If x86_64-elf-gcc not available, use system clang:
+# Edit Makefile to use: CC = clang
 ```
 
 ### Windows
@@ -126,21 +136,48 @@ If other options don't work, use a Linux VM:
 
 - **VS Code Integration**: Use VS Code with WSL extension for seamless editing
 
-### Building Cross-Compiler (if needed)
+### Building Cross-Compiler (Optional - Advanced Users)
 
-If you need to build the cross-compiler:
+If you want the dedicated x86_64-elf toolchain and it's not in your package manager:
 
 ```bash
-# Download and build x86_64-elf-gcc
-wget https://ftp.gnu.org/gnu/gcc/gcc-11.2.0/gcc-11.2.0.tar.gz
-tar xf gcc-11.2.0.tar.gz
-cd gcc-11.2.0
-./contrib/download_prerequisites
+# Download and build x86_64-elf-gcc (takes 30-60 minutes)
+export PREFIX="$HOME/opt/cross"
+export TARGET=x86_64-elf
+export PATH="$PREFIX/bin:$PATH"
+
+# Install dependencies
+sudo apt-get install libgmp-dev libmpfr-dev libmpc-dev texinfo
+
+# Download binutils and gcc
+mkdir ~/cross-compiler && cd ~/cross-compiler
+wget https://ftp.gnu.org/gnu/binutils/binutils-2.40.tar.gz
+wget https://ftp.gnu.org/gnu/gcc/gcc-13.1.0/gcc-13.1.0.tar.gz
+
+# Build binutils
+tar xf binutils-2.40.tar.gz
+cd binutils-2.40
 mkdir build && cd build
-../configure --target=x86_64-elf --disable-nls --enable-languages=c --without-headers
-make all-gcc all-target-libgcc -j$(nproc)
-sudo make install-gcc install-target-libgcc
+../configure --target=$TARGET --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
+make -j$(nproc)
+make install
+cd ../..
+
+# Build gcc
+tar xf gcc-13.1.0.tar.gz
+cd gcc-13.1.0
+mkdir build && cd build
+../configure --target=$TARGET --prefix="$PREFIX" --disable-nls --enable-languages=c,c++ --without-headers
+make all-gcc -j$(nproc)
+make all-target-libgcc -j$(nproc)
+make install-gcc
+make install-target-libgcc
+
+# Add to PATH permanently
+echo 'export PATH="$HOME/opt/cross/bin:$PATH"' >> ~/.bashrc
 ```
+
+**Note:** Most users should use system GCC instead (already covered above).
 
 ## Building OpenComp
 
@@ -155,6 +192,28 @@ make
 # Run in QEMU
 make run
 ```
+
+### Choosing Your Compiler
+
+OpenComp supports two Makefile configurations:
+
+**Using System GCC (Default - Recommended)**
+The repository includes a `Makefile` configured for system GCC. This works out-of-the-box on most systems.
+
+```makefile
+CC = gcc
+LD = ld
+```
+
+**Using Cross-Compiler (Optional)**
+If you have `x86_64-elf-gcc` installed, you can modify the Makefile:
+
+```makefile
+CC = x86_64-elf-gcc
+LD = x86_64-elf-gcc
+```
+
+Most users should stick with system GCC unless you have specific requirements for the cross-compiler.
 
 ## First Boot
 
@@ -231,21 +290,63 @@ sudo apt-get install qemu-system-x86
 
 ### Build fails with "x86_64-elf-gcc not found"
 
-**Problem**: Cross-compiler not installed
+**Problem**: Cross-compiler not installed but Makefile is configured for it
 
-**Solution**: Either build the cross-compiler (see above) or modify Makefile:
+**Solution 1** (Recommended): Use system GCC by updating Makefile:
 ```makefile
 CC = gcc
 LD = ld
+CFLAGS = -O2 -ffreestanding -nostdlib -fno-builtin -Wall -Wextra -mno-red-zone -std=gnu11 -m64
+LDFLAGS = -T linker.ld -nostdlib -melf_x86_64
 ```
-Note: This may not work for all systems.
 
-**Windows WSL2**: Make sure you installed build-essential:
+**Solution 2**: Install cross-compiler tools:
 ```bash
-sudo apt-get install build-essential
+# Ubuntu/Debian
+sudo apt-get install gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu
+
+# Or build from source (see "Building Cross-Compiler" section above)
 ```
 
-### ISO creation fails
+**Windows WSL2**: 
+```bash
+sudo apt-get install build-essential gcc
+```
+
+### Build fails with "ld: cannot find -lgcc"
+
+**Problem**: Missing compiler runtime libraries
+
+**Solution**: Use GCC for linking instead of ld directly:
+```makefile
+LD = gcc
+LDFLAGS = -T linker.ld -nostdlib -ffreestanding -m64
+```
+
+Or install additional packages:
+```bash
+sudo apt-get install gcc-multilib
+```
+
+### QEMU Issues
+
+#### QEMU won't start
+
+**Problem**: `qemu-system-x86_64: command not found`
+
+**Solution**: Install QEMU:
+```bash
+# Ubuntu/Debian/WSL
+sudo apt-get install qemu-system-x86
+
+# Arch
+sudo pacman -S qemu-system-x86
+
+# macOS
+brew install qemu
+```
+
+#### ISO creation fails
 
 **Problem**: `grub-mkrescue: command not found`
 
@@ -253,7 +354,11 @@ sudo apt-get install build-essential
 
 **Linux**:
 ```bash
+# Ubuntu/Debian
 sudo apt-get install grub-pc-bin xorriso
+
+# Arch
+sudo pacman -S grub xorriso
 ```
 
 **Windows WSL2**: Same as Linux above
@@ -263,7 +368,12 @@ sudo apt-get install grub-pc-bin xorriso
 qemu-system-x86_64 -kernel tinykernel.elf -m 256M
 ```
 
-### Black screen in QEMU
+**macOS**:
+```bash
+brew install grub xorriso
+```
+
+#### Black screen in QEMU
 
 **Problem**: Kernel not booting properly
 
@@ -274,7 +384,9 @@ make
 qemu-system-x86_64 -cdrom opencomp.iso -m 256M -serial stdio
 ```
 
-### Can't type in QEMU
+This outputs debug info to terminal.
+
+#### Can't type in QEMU
 
 **Problem**: Window focus or keyboard not working
 
@@ -282,7 +394,9 @@ qemu-system-x86_64 -cdrom opencomp.iso -m 256M -serial stdio
 
 **Windows**: If using QEMU GUI, press `Ctrl+Alt+G` to grab/release mouse and keyboard.
 
-### "Permission denied" on WSL2
+### Linux/WSL Issues
+
+#### "Permission denied" on WSL2
 
 **Problem**: Can't execute commands or access files
 
@@ -296,7 +410,7 @@ cd OpenComp-Kernel
 chmod -R 755 .
 ```
 
-### QEMU window doesn't appear on Windows
+#### QEMU window doesn't appear on Windows WSL2
 
 **Problem**: QEMU runs but no window shows
 
