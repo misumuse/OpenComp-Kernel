@@ -1,9 +1,10 @@
 # OpenComp Kernel
 
-OpenComp is an component-based kernel featuring a simple text-mode desktop environment. It's designed to help developers understand operating system fundamentals while maintaining a clean, modular architecture.
+OpenComp is an educational component-based kernel featuring a simple text-mode desktop environment. It's designed to help developers understand operating system fundamentals while maintaining a clean, modular architecture.
 
 ![License](https://img.shields.io/badge/license-GPLv2-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-x86--64-lightgrey.svg)
+![Build](https://img.shields.io/badge/build-multiboot2-green.svg)
 
 ## Features
 
@@ -12,6 +13,21 @@ OpenComp is an component-based kernel featuring a simple text-mode desktop envir
 - **Keyboard Driver**: PS/2 keyboard input with scancode translation
 - **Desktop Environment**: Text-mode windowing system with command interface
 - **VGA Display**: Enhanced text-mode graphics with color support
+- **Multiboot2 Compliant**: Boots with GRUB2 bootloader
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/misumuse/OpenComp-Kernel.git
+cd OpenComp-Kernel
+
+# Build and run
+make
+make run
+```
+
+**First time building?** See [QUICKSTART.md](QUICKSTART.md) for detailed setup instructions.
 
 ## Screenshots
 
