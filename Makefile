@@ -1,7 +1,7 @@
-CC = x86_64-elf-gcc
-LD = x86_64-elf-ld
-CFLAGS = -O2 -ffreestanding -nostdlib -fno-builtin -Wall -Wextra -mno-red-zone -std=gnu11
-LDFLAGS = -T linker.ld
+CC = gcc
+LD = ld
+CFLAGS = -O2 -ffreestanding -nostdlib -fno-builtin -Wall -Wextra -mno-red-zone -std=gnu11 -m64
+LDFLAGS = -T linker.ld -nostdlib -melf_x86_64
 
 OBJS = kernel.o start.o memory.o keyboard.o desktop.o
 
