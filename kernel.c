@@ -5,18 +5,21 @@
  * Licensed under GNU GPLv2
  *
  * What it does:
- *  - minimal VGA text output
+ *  - VGA text output with extended functions
  *  - a "component" API: components provide a name and init/tick functions
- *  - an example component included at the bottom (hello_component)
+ *  - desktop environment support
+ *  - keyboard input
+ *  - memory management
  *
  * Note: This is a minimal 64-bit kernel meant to be loaded by GRUB (multiboot2).
  */
 
 #include <stdint.h>
 #include <stddef.h>
+#include "kernel.h"
 
 /* ------------------------------
-   Placeholder
+   VGA Display Functions
    ------------------------------
 */
 
@@ -26,7 +29,22 @@ static uint16_t *vga = (uint16_t *)0xB8000;
 static size_t vga_row = 0, vga_col = 0;
 static uint8_t vga_color = 0x0f;
 
-static void vga_putchar(char c) {
+void vga_putchar_at(int x, int y, char c, uint8_t color) {
+    if (x >= 0 && x < VGA_WIDTH && y >= 0 && y < VGA_HEIGHT) {
+        size_t index = y * VGA_WIDTH + x;
+        vga[index] = ((uint16_t)color << 8) | (uint8_t)c;
+    }
+}
+
+void vga_clear(uint8_t color) {
+    for (size_t i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+        vga[i] = ((uint16_t)color << 8) | ' ';
+    }
+    vga_row = 0;
+    vga_col = 0;
+}
+
+void vga_putchar(char c) {
     if (c == '\n') {
         vga_col = 0;
         vga_row++;
@@ -53,42 +71,31 @@ static void vga_putchar(char c) {
     }
 }
 
-static void puts(const char *s) {
+void puts(const char *s) {
     while (*s) vga_putchar(*s++);
 }
 
-static void itoa_u(uint64_t v, char *buf) {
+void itoa_u(uint64_t v, char *buf) {
     char tmp[32];
     int i = 0;
     if (v == 0) { buf[0]='0'; buf[1]=0; return; }
     while (v) { tmp[i++] = '0' + (v % 10); v /= 10; }
     int j = 0;
-    while (i--) buf[j++] = tmp[i];
+    while (i > 0) buf[j++] = tmp[--i];
     buf[j]=0;
+}
+
+void str_append(char *dest, const char *src) {
+    while (*dest) dest++;
+    while (*src) *dest++ = *src++;
+    *dest = 0;
 }
 
 /* ------------------------------
    Component API
    ------------------------------
-   Components are simple C objects that implement this interface:
-     struct component {
-         const char *name;
-         void (*init)(void);
-         void (*tick)(void);   // called repeatedly by kernel main loop
-     };
-   To add a component, create a C file that defines a 'struct component my_comp = { ... }'
-   and compile/link it into the kernel. This keeps runtime simple (no dynamic loader).
 */
 
-struct component {
-    const char *name;
-    void (*init)(void);
-    void (*tick)(void);
-};
-
-/* Forward declare: the linker will put component pointers into the .comps section.
-   Each component should define: struct component compNAME __attribute__((section(".comps"))) = { ... };
-*/
 extern struct component *__start_comps;
 extern struct component *__stop_comps;
 
@@ -121,56 +128,30 @@ static void kernel_main_loop(void) {
             if (c && c->tick) c->tick();
         }
         // simple busy-wait delay
-        for (volatile uint64_t i=0;i<2000000ULL;i++);
+        for (volatile uint64_t i=0;i<1000000ULL;i++);
     }
 }
 
-/* Entry point called from assembly stub (see linker + assembly). */
+/* Entry point called from assembly stub */
 void kernel_main(void) {
     // basic welcome
-    puts("TinyKernel: component-capable kernel (GPLv3)\n");
+    vga_clear(0x0F);
+    puts("OpenComp Kernel - Component-Based OS (GPLv2)\n");
+    puts("============================================\n\n");
+    
     // init components
     register_components_and_init();
-    puts("Entering main loop...\n");
+    puts("\nEntering main loop...\n");
+    
+    // Small delay to show init messages
+    for (volatile uint64_t i=0;i<50000000ULL;i++);
+    
     kernel_main_loop();
     // never returns
 }
 
 /* ------------------------------
-   Example component (hello)
-   ------------------------------
-   A component compiled into the kernel. Real components should live in
-   separate files and be added at compile/link time.
-*/
-static int hello_state = 0;
-static void hello_init(void) {
-    puts("[hello] initialized\n");
-}
-static void hello_tick(void) {
-    char buf[32];
-    if ((hello_state++ % 100)==0) {
-        puts("[hello] tick ");
-        itoa_u(hello_state, buf);
-        puts(buf);
-        puts("\n");
-    }
-}
-
-/* Place pointer to component into .comps by using a little trick:
-   we create a static struct component object and then a pointer to it in .comps.
-*/
-__attribute__((section(".compobjs"))) static struct component hello_component = {
-    .name = "hello",
-    .init = hello_init,
-    .tick = hello_tick
-};
-
-/* We need pointers in .comps. Create an aliased pointer that goes into .comps */
-__attribute__((section(".comps"))) struct component *p_hello_component = &hello_component;
-
-/* ------------------------------
    Minimal stubs for required symbols
    ------------------------------
-   Nova Says: For this we don't need full libc. Contributors, add as needed. Define minimal symbols.
 */
 void _start_crt_stub(void) { kernel_main(); for(;;); }
