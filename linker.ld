@@ -1,25 +1,53 @@
-/* linker.ld - simple script for flat kernel image */
+/* linker.ld - linker script for multiboot2 kernel */
 ENTRY(_start)
+
 SECTIONS
 {
-  . = 0x100000;
+  /* Start at 1 MB (standard for multiboot) */
+  . = 1M;
 
-  .text : {
-    *(.multiboot)
+  /* Multiboot header MUST come first */
+  .multiboot ALIGN(8) : {
+    KEEP(*(.multiboot))
+  }
+
+  /* Code section */
+  .text ALIGN(4K) : {
     *(.text*)
   }
 
-  .rodata : { *(.rodata*) }
+  /* Read-only data */
+  .rodata ALIGN(4K) : {
+    *(.rodata*)
+  }
 
-  .data : { *(.data*) }
+  /* Initialized data */
+  .data ALIGN(4K) : {
+    *(.data*)
+  }
 
-  .compobjs : { *(.compobjs*) }    /* component objects */
-  .comps : { *(.comps*) }          /* pointers to components */
+  /* Component objects */
+  .compobjs ALIGN(8) : {
+    *(.compobjs*)
+  }
 
-  __start_comps = ADDR(.comps);
-  __stop_comps  = __start_comps + SIZEOF(.comps);
+  /* Component pointers - with symbols for iteration */
+  .comps ALIGN(8) : {
+    __start_comps = .;
+    *(.comps*)
+    __stop_comps = .;
+  }
 
-  .bss (NOLOAD) : { *(.bss*) }
+  /* Uninitialized data */
+  .bss ALIGN(4K) : {
+    *(COMMON)
+    *(.bss*)
+  }
 
-  /DISCARD/ : { *(.note*) *(.eh_frame*) }
+  /* Discard unnecessary sections */
+  /DISCARD/ : {
+    *(.comment)
+    *(.note*)
+    *(.eh_frame*)
+  }
 }
