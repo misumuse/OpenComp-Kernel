@@ -52,8 +52,8 @@ sudo apt-get update
 sudo apt-get install -y build-essential grub-pc-bin xorriso qemu-system-x86
 
 # 5. Clone and build OpenComp
-git clone https://github.com/YOUR_USERNAME/opencomp.git
-cd opencomp
+git clone https://github.com/misumuse/OpenComp-Kernel.git
+cd OpenComp-Kernel
 make
 make run
 ```
@@ -95,8 +95,8 @@ qemu-system-x86_64 -kernel tinykernel.elf -m 256M
 # 3. Download QEMU for Windows from https://qemu.weilnetz.de/
 
 # 4. Build OpenComp in Cygwin terminal
-git clone https://github.com/YOUR_USERNAME/opencomp.git
-cd opencomp
+git clone https://github.com/misumuse/OpenComp-Kernel.git
+cd OpenComp-Kernel
 make
 # Run QEMU from Windows install location
 /c/Program\ Files/qemu/qemu-system-x86_64.exe -cdrom opencomp.iso -m 256M
@@ -120,7 +120,7 @@ If other options don't work, use a Linux VM:
   sudo apt-get install qemu-system-gui
   ```
 
-- **File Access**: Access WSL files from Windows at `\\wsl$\Ubuntu\home\username\opencomp`
+- **File Access**: Access WSL files from Windows at `\\wsl$\Ubuntu\home\username\OpenComp-Kernel`
 
 - **Performance**: WSL2 offers near-native Linux performance
 
@@ -146,8 +146,8 @@ sudo make install-gcc install-target-libgcc
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/opencomp.git
-cd opencomp
+git clone https://github.com/misumuse/OpenComp-Kernel.git
+cd OpenComp-Kernel
 
 # Build the kernel
 make
@@ -292,7 +292,7 @@ qemu-system-x86_64 -cdrom opencomp.iso -m 256M -serial stdio
 chmod +x script_name.sh
 
 # Or for the whole project
-cd opencomp
+cd OpenComp-Kernel
 chmod -R 755 .
 ```
 
