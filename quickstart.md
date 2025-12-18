@@ -33,6 +33,99 @@ brew install x86_64-elf-gcc
 brew install grub xorriso qemu
 ```
 
+### Windows
+
+#### Option 1: WSL2 (Recommended)
+
+Windows Subsystem for Linux provides a native Linux environment:
+
+```bash
+# 1. Install WSL2 (PowerShell as Administrator)
+wsl --install
+
+# 2. Restart your computer
+
+# 3. Open Ubuntu from Start Menu and create a user account
+
+# 4. Install dependencies in WSL
+sudo apt-get update
+sudo apt-get install -y build-essential grub-pc-bin xorriso qemu-system-x86
+
+# 5. Clone and build OpenComp
+git clone https://github.com/YOUR_USERNAME/opencomp.git
+cd opencomp
+make
+make run
+```
+
+#### Option 2: MSYS2/MinGW
+
+Use MSYS2 for a Windows-native build environment:
+
+```bash
+# 1. Download and install MSYS2 from https://www.msys2.org/
+
+# 2. Open MSYS2 MINGW64 terminal
+
+# 3. Install dependencies
+pacman -S base-devel mingw-w64-x86_64-gcc make git
+
+# 4. Install QEMU for Windows
+# Download from: https://qemu.weilnetz.de/w64/
+# Or use: pacman -S mingw-w64-x86_64-qemu
+
+# 5. For GRUB, you'll need to use WSL or a Linux VM to create the ISO
+# Alternatively, test with raw ELF in QEMU:
+qemu-system-x86_64 -kernel tinykernel.elf -m 256M
+```
+
+#### Option 3: Cygwin
+
+```bash
+# 1. Download Cygwin installer from https://www.cygwin.com/
+
+# 2. Run setup and select these packages:
+#    - gcc-core
+#    - gcc-g++
+#    - make
+#    - git
+#    - grub2
+#    - xorriso
+
+# 3. Download QEMU for Windows from https://qemu.weilnetz.de/
+
+# 4. Build OpenComp in Cygwin terminal
+git clone https://github.com/YOUR_USERNAME/opencomp.git
+cd opencomp
+make
+# Run QEMU from Windows install location
+/c/Program\ Files/qemu/qemu-system-x86_64.exe -cdrom opencomp.iso -m 256M
+```
+
+#### Option 4: Virtual Machine
+
+If other options don't work, use a Linux VM:
+
+```bash
+# 1. Install VirtualBox or VMware
+# 2. Create Ubuntu VM
+# 3. Follow Ubuntu/Debian instructions above
+```
+
+#### Windows Tips
+
+- **WSL2 GUI**: Install WSLg for graphical QEMU window:
+  ```bash
+  # In WSL2
+  sudo apt-get install qemu-system-gui
+  ```
+
+- **File Access**: Access WSL files from Windows at `\\wsl$\Ubuntu\home\username\opencomp`
+
+- **Performance**: WSL2 offers near-native Linux performance
+
+- **VS Code Integration**: Use VS Code with WSL extension for seamless editing
+
 ### Building Cross-Compiler (if needed)
 
 If you need to build the cross-compiler:
@@ -147,13 +240,27 @@ LD = ld
 ```
 Note: This may not work for all systems.
 
+**Windows WSL2**: Make sure you installed build-essential:
+```bash
+sudo apt-get install build-essential
+```
+
 ### ISO creation fails
 
 **Problem**: `grub-mkrescue: command not found`
 
 **Solution**: Install GRUB tools:
+
+**Linux**:
 ```bash
 sudo apt-get install grub-pc-bin xorriso
+```
+
+**Windows WSL2**: Same as Linux above
+
+**Windows MSYS2**: ISO creation not fully supported. Test with:
+```bash
+qemu-system-x86_64 -kernel tinykernel.elf -m 256M
 ```
 
 ### Black screen in QEMU
@@ -172,6 +279,34 @@ qemu-system-x86_64 -cdrom opencomp.iso -m 256M -serial stdio
 **Problem**: Window focus or keyboard not working
 
 **Solution**: Click inside the QEMU window to grab keyboard focus.
+
+**Windows**: If using QEMU GUI, press `Ctrl+Alt+G` to grab/release mouse and keyboard.
+
+### "Permission denied" on WSL2
+
+**Problem**: Can't execute commands or access files
+
+**Solution**:
+```bash
+# Make sure files have execute permissions
+chmod +x script_name.sh
+
+# Or for the whole project
+cd opencomp
+chmod -R 755 .
+```
+
+### QEMU window doesn't appear on Windows
+
+**Problem**: QEMU runs but no window shows
+
+**Solution**: 
+- Install WSLg for GUI support in WSL2
+- Or use `-nographic` flag and interact via terminal:
+  ```bash
+  qemu-system-x86_64 -cdrom opencomp.iso -m 256M -nographic
+  ```
+- Or use VNC: `-vnc :1` then connect with VNC client to `localhost:5901`
 
 ## Next Steps
 
