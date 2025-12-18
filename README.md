@@ -1,6 +1,6 @@
 # OpenComp Kernel
 
-OpenComp is a work-in-progress component-based kernel made by one person featuring a simple text-mode desktop environment. It's designed to help developers understand operating system fundamentals while maintaining a clean, modular architecture.
+OpenComp is an component-based kernel featuring a simple text-mode desktop environment. It's designed to help developers understand operating system fundamentals while maintaining a clean, modular architecture.
 
 ![License](https://img.shields.io/badge/license-GPLv2-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-x86--64-lightgrey.svg)
