@@ -4,7 +4,7 @@ Thank you for your interest in contributing to OpenComp! This document provides 
 
 ## Getting Started
 
-1. Fork the repository on GitHub
+1. Fork the repository on GitHub (https://github.com/misumuse/OpenComp-Kernel)
 2. Clone your fork locally
 3. Create a new branch for your feature or bugfix
 4. Make your changes
