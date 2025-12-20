@@ -38,6 +38,8 @@ static GUIWindow windows[MAX_WINDOWS];
 static int active_window = -1;
 static int mouse_x = 160, mouse_y = 100;
 static uint8_t last_mouse_buttons = 0;
+static int tick_counter = 0;
+static int needs_redraw = 1;  // Flag to control when to redraw
 
 extern void vga_setpixel(int x, int y, uint8_t color);
 extern void vga_clear_screen(uint8_t color);
