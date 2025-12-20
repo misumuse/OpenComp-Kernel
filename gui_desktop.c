@@ -311,7 +311,8 @@ static void handle_keyboard(void) {
             itoa_u(count, num);
             safe_append(buf, "Files: ", 512);
             safe_append(buf, num, 512);
-            safe_append(buf, "\n\n", 512);
+            safe_append(buf, "\n", 512);
+            safe_append(buf, "Press 1-8 to open\n\n", 512);
             
             for (int i = 0; i < count && i < 8; i++) {
                 char name[128];
@@ -319,6 +320,12 @@ static void handle_keyboard(void) {
                 int is_dir;
                 
                 if (fs_get_file_info(i, name, &size, &is_dir)) {
+                    // Add number
+                    char idx[8];
+                    itoa_u(i + 1, idx);
+                    safe_append(buf, idx, 512);
+                    safe_append(buf, ". ", 512);
+                    
                     safe_append(buf, is_dir ? "[DIR] " : "[   ] ", 512);
                     
                     char short_name[25];
@@ -339,6 +346,58 @@ static void handle_keyboard(void) {
             }
             
             set_window_content(win, buf);
+        }
+        needs_redraw = 1;
+    }
+    // 1-8 keys - open file by number
+    else if (key >= '1' && key <= '8') {
+        int file_idx = key - '1';
+        int count = fs_get_file_count();
+        
+        if (file_idx < count) {
+            char name[128];
+            uint32_t size;
+            int is_dir;
+            
+            if (fs_get_file_info(file_idx, name, &size, &is_dir)) {
+                if (!is_dir) {
+                    // Open file viewer window
+                    int win = create_window(name, 20, 15, 280, 160);
+                    if (win >= 0) {
+                        uint8_t *data;
+                        uint32_t fsize;
+                        
+                        if (fs_read_file_by_index(file_idx, &data, &fsize)) {
+                            char content[512];
+                            int i = 0;
+                            // Copy file contents (limit to 500 chars)
+                            while (i < fsize && i < 500 && data[i]) {
+                                content[i] = data[i];
+                                i++;
+                            }
+                            content[i] = 0;
+                            
+                            // Add truncation notice if needed
+                            if (fsize > 500) {
+                                safe_append(content, "\n\n...truncated...", 512);
+                            }
+                            
+                            set_window_content(win, content);
+                        } else {
+                            set_window_content(win, "Error: Could not read file");
+                        }
+                    }
+                } else {
+                    // It's a directory
+                    int win = create_window(name, 60, 50, 200, 80);
+                    if (win >= 0) {
+                        set_window_content(win, 
+                            "Directory\n\n"
+                            "Directory browsing\n"
+                            "not yet implemented.");
+                    }
+                }
+            }
         }
         needs_redraw = 1;
     }
