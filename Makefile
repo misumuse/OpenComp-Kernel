@@ -19,6 +19,12 @@ keyboard.o: keyboard.c kernel.h
 desktop.o: desktop.c kernel.h
 	$(CC) $(CFLAGS) -c desktop.c -o desktop.o
 
+mouse.o: mouse.c kernel.h
+	$(CC) $(CFLAGS) -c mouse.c -o mouse.o
+
+vga_graphics.o: vga_graphics.c kernel.h
+	$(CC) $(CFLAGS) -c vga_graphics.c -o vga_graphics.o
+
 start.o: start.S
 	$(CC) $(CFLAGS) -c start.S -o start.o
 
