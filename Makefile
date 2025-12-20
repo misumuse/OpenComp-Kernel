@@ -3,7 +3,7 @@ LD = ld
 CFLAGS = -O2 -ffreestanding -nostdlib -fno-builtin -Wall -Wextra -std=gnu11 -m32
 LDFLAGS = -T linker.ld -nostdlib -melf_i386
 
-OBJS = kernel.o start.o memory.o keyboard.o desktop.o
+OBJS = kernel.o start.o memory.o keyboard.o mouse.o vga_graphics.o desktop.o
 
 all: tinykernel.bin
 
