@@ -108,7 +108,7 @@ static void draw_taskbar(void) {
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
     
     // Draw keyboard help
-    vga_draw_string(180, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch WASD:Move", COLOR_TITLEBAR_TEXT);
+    vga_draw_string(185, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch X:Close", COLOR_TITLEBAR_TEXT);
     
     // Draw window buttons in taskbar
     int btn_x = 80;
@@ -242,8 +242,8 @@ static void handle_keyboard(void) {
         return;
     }
     
-    // Escape - close active window
-    if (key == 27) { // ESC
+    // X - close active window (Esc doesn't work in QEMU)
+    if (key == 'x' || key == 'X') {
         if (active_window >= 0) {
             windows[active_window].active = 0;
             // Find next active window
@@ -290,7 +290,7 @@ static void handle_keyboard(void) {
             set_window_content(win,
                 "Keyboard Shortcuts:\n\n"
                 "Tab - Switch windows\n"
-                "Esc - Close window\n"
+                "X - Close window\n"
                 "WASD - Move window\n"
                 "Space - Commands\n"
                 "H - Help\n"
@@ -310,7 +310,7 @@ static void handle_keyboard(void) {
                 "Tab switches windows.\n\n"
                 "WASD moves the active\n"
                 "window around.\n\n"
-                "Esc closes windows.\n\n"
+                "X closes windows.\n\n"
                 "Space shows commands.");
         }
         needs_redraw = 1;
