@@ -236,21 +236,24 @@ static void desktop_init(void) {
 static int tick_counter = 0;
 
 static void desktop_tick(void) {
-    // Redraw every few ticks
-    if ((tick_counter++ % 10) == 0) {
+    // Only redraw every 50 ticks to reduce flicker
+    if ((tick_counter++ % 50) == 0) {
         draw_desktop();
     }
     
-    // Handle keyboard input
+    // Handle keyboard input every tick
     if (keyboard_has_key()) {
         char c = keyboard_get_key();
         
         if (c == '\n') {
             handle_command();
+            draw_desktop(); // Redraw immediately after command
         } else if (c == '\b') {
             if (command_len > 0) command_len--;
+            draw_desktop(); // Redraw immediately after backspace
         } else if (command_len < 63) {
             command_buffer[command_len++] = c;
+            draw_desktop(); // Redraw immediately after character
         }
     }
 }
