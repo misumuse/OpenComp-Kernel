@@ -34,6 +34,7 @@ static GUIWindow windows[MAX_WINDOWS];
 static int active_window = -1;
 static int tick_counter = 0;
 static int needs_redraw = 1;
+static int file_browser_open = 0;  // Track if file browser is open
 
 extern void vga_clear_screen(uint8_t color);
 extern void vga_fill_rect(int x, int y, int w, int h, uint8_t color);
@@ -209,6 +210,15 @@ static void handle_keyboard(void) {
     // X - close window
     if (key == 'x' || key == 'X') {
         if (active_window >= 0) {
+            // Check if closing file browser
+            if (windows[active_window].title[0] == 'F' && 
+                windows[active_window].title[1] == 'i' &&
+                windows[active_window].title[2] == 'l' &&
+                windows[active_window].title[3] == 'e' &&
+                windows[active_window].title[4] == 's') {
+                file_browser_open = 0;
+            }
+            
             windows[active_window].active = 0;
             active_window = -1;
             for (int i = 0; i < MAX_WINDOWS; i++) {
@@ -303,6 +313,7 @@ static void handle_keyboard(void) {
     }
     // F - File browser
     else if (key == 'f' || key == 'F') {
+        file_browser_open = 1;  // Mark file browser as open
         int win = create_window("Files", 30, 20, 260, 140);
         if (win >= 0) {
             char buf[512] = "File Browser\n\n";
@@ -349,8 +360,8 @@ static void handle_keyboard(void) {
         }
         needs_redraw = 1;
     }
-    // 1-8 keys - open file by number
-    else if (key >= '1' && key <= '8') {
+    // 1-8 keys - open file by number (ONLY if file browser is open)
+    else if ((key >= '1' && key <= '8') && file_browser_open) {
         int file_idx = key - '1';
         int count = fs_get_file_count();
         
