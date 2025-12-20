@@ -420,9 +420,6 @@ static void gui_desktop_init(void) {
     puts("[gui_desktop] Graphical desktop initialized\n");
 }
 
-static int tick_counter = 0;
-static int needs_redraw = 1;  // Flag to control when to redraw
-
 static void gui_desktop_tick(void) {
     handle_keyboard();
     
