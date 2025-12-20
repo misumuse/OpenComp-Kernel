@@ -108,7 +108,7 @@ static void draw_taskbar(void) {
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
     
     // Draw keyboard help
-    vga_draw_string(175, 200 - TASKBAR_HEIGHT + 4, "S:Start X:Close Tab:Switch", COLOR_TITLEBAR_TEXT);
+    vga_draw_string(175, 200 - TASKBAR_HEIGHT + 4, "E:Start X:Close Tab:Switch", COLOR_TITLEBAR_TEXT);
     
     // Draw window count
     if (active_window >= 0) {
@@ -290,7 +290,7 @@ static void handle_keyboard(void) {
                 "Tab - Switch windows\n"
                 "X - Close window\n"
                 "WASD - Move window\n\n"
-                "S - Start Menu\n"
+                "E - Start Menu\n"
                 "H - Help\n"
                 "M - Memory\n"
                 "F - Files\n"
@@ -401,8 +401,8 @@ static void handle_keyboard(void) {
         needs_redraw = 1;
     }
     
-    // S - Start Menu
-    else if (key == 's' || key == 'S') {
+    // E - Start Menu
+    else if (key == 'e' || key == 'E') {
         int win = create_window("Start Menu", 10, 150, 140, 80);
         if (win >= 0) {
             set_window_content(win,
