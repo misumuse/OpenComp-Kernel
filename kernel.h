@@ -50,4 +50,11 @@ char keyboard_get_key(void);
 void mouse_get_position(int *x, int *y);
 uint8_t mouse_get_buttons(void);
 
+/* Filesystem */
+void fs_set_initrd(uint8_t *addr, uint32_t size);
+int fs_get_file_count(void);
+int fs_get_file_info(int index, char *name, uint32_t *size, int *is_dir);
+int fs_read_file(const char *filename, uint8_t **data, uint32_t *size);
+int fs_read_file_by_index(int index, uint8_t **data, uint32_t *size);
+
 #endif
