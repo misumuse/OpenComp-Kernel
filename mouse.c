@@ -132,10 +132,39 @@ static void mouse_tick(void) {
             if (mouse_byte[0] & 0x40) dx = 0;  // X overflow
             if (mouse_byte[0] & 0x80) dy = 0;  // Y overflow
             
-            // Apply movement - FIXED: dx affects Y, dy affects X (they're swapped!)
-            // Also both need to be inverted
-            mouse_x -= dy;  // Y movement controls X (inverted)
-            mouse_y -= dx;  // X movement controls Y (inverted)
+            // Try different axis mappings - uncomment ONE set to test:
+            
+            // Option 1: Standard (what we expect)
+            // mouse_x += dx;
+            // mouse_y += dy;
+            
+            // Option 2: Y inverted
+            // mouse_x += dx;
+            // mouse_y -= dy;
+            
+            // Option 3: X inverted
+            // mouse_x -= dx;
+            // mouse_y += dy;
+            
+            // Option 4: Both inverted
+            // mouse_x -= dx;
+            // mouse_y -= dy;
+            
+            // Option 5: Swapped
+            // mouse_x += dy;
+            // mouse_y += dx;
+            
+            // Option 6: Swapped, Y inverted
+            // mouse_x += dy;
+            // mouse_y -= dx;
+            
+            // Option 7: Swapped, X inverted
+            mouse_x -= dy;
+            mouse_y += dx;
+            
+            // Option 8: Swapped, both inverted
+            // mouse_x -= dy;
+            // mouse_y -= dx;
             
             // Clamp to screen
             if (mouse_x < 0) mouse_x = 0;
