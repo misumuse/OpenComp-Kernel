@@ -18,11 +18,22 @@ struct component {
     void (*tick)(void);
 };
 
-/* VGA functions */
+/* VGA Text Mode functions */
 void vga_putchar(char c);
 void vga_putchar_at(int x, int y, char c, uint8_t color);
 void vga_clear(uint8_t color);
 void puts(const char *s);
+
+/* VGA Graphics Mode functions */
+void vga_setpixel(int x, int y, uint8_t color);
+void vga_clear_screen(uint8_t color);
+void vga_fill_rect(int x, int y, int w, int h, uint8_t color);
+void vga_draw_rect(int x, int y, int w, int h, uint8_t color);
+void vga_draw_line(int x0, int y0, int x1, int y1, uint8_t color);
+void vga_draw_char(int x, int y, char c, uint8_t color);
+void vga_draw_string(int x, int y, const char *str, uint8_t color);
+
+/* Utility functions */
 void itoa_u(uint64_t v, char *buf);
 void str_append(char *dest, const char *src);
 
@@ -34,5 +45,9 @@ uint64_t get_free_pages(void);
 /* Keyboard */
 int keyboard_has_key(void);
 char keyboard_get_key(void);
+
+/* Mouse */
+void mouse_get_position(int *x, int *y);
+uint8_t mouse_get_buttons(void);
 
 #endif
