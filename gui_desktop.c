@@ -105,6 +105,19 @@ static void draw_taskbar(void) {
     vga_fill_rect(0, 200 - TASKBAR_HEIGHT, 320, TASKBAR_HEIGHT, COLOR_TASKBAR);
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
     
+    // Draw mouse position for debugging
+    char pos_str[32];
+    char num[16];
+    pos_str[0] = 'X';
+    pos_str[1] = ':';
+    pos_str[2] = 0;
+    itoa_u(mouse_x, num);
+    str_append(pos_str, num);
+    str_append(pos_str, " Y:");
+    itoa_u(mouse_y, num);
+    str_append(pos_str, num);
+    vga_draw_string(240, 200 - TASKBAR_HEIGHT + 4, pos_str, COLOR_TITLEBAR_TEXT);
+    
     // Draw window buttons in taskbar
     int btn_x = 80;
     for (int i = 0; i < MAX_WINDOWS; i++) {
