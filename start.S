@@ -4,10 +4,10 @@
 .section .multiboot
 .align 8
 multiboot2_header_start:
-    .long 0xE85250D6                                    /* magic */
-    .long 0                                             /* architecture (i386) */
-    .long multiboot2_header_end - multiboot2_header_start  /* header length */
-    .long -(0xE85250D6 + (multiboot2_header_end - multiboot2_header_start))  /* checksum */
+    .long 0xE85250D6                /* magic */
+    .long 0                         /* architecture (i386) */
+    .long 24                        /* header length (24 bytes total) */
+    .long 0x17ADAF12                /* checksum (calculated manually) */
     
     /* end tag */
     .align 8
