@@ -21,7 +21,6 @@
 #define COLOR_BORDER 0x00        // Black
 #define COLOR_BUTTON 0x07        // Light gray
 #define COLOR_TEXT 0x00          // Black
-#define COLOR_CURSOR 0x0F        // White
 
 typedef struct {
     int active;
@@ -29,153 +28,34 @@ typedef struct {
     int width, height;
     char title[32];
     char content[512];
-    int dragging;
-    int drag_offset_x;
-    int drag_offset_y;
 } GUIWindow;
 
 static GUIWindow windows[MAX_WINDOWS];
 static int active_window = -1;
-static int mouse_x = 160, mouse_y = 100;
-static uint8_t last_mouse_buttons = 0;
 static int tick_counter = 0;
-static int needs_redraw = 1;  // Flag to control when to redraw
+static int needs_redraw = 1;
 
-extern void vga_setpixel(int x, int y, uint8_t color);
 extern void vga_clear_screen(uint8_t color);
 extern void vga_fill_rect(int x, int y, int w, int h, uint8_t color);
 extern void vga_draw_rect(int x, int y, int w, int h, uint8_t color);
 extern void vga_draw_string(int x, int y, const char *str, uint8_t color);
-extern void mouse_get_position(int *x, int *y);
-extern uint8_t mouse_get_buttons(void);
+extern void vga_draw_char(int x, int y, char c, uint8_t color);
 
-// Draw mouse cursor (larger, more visible)
-static void draw_cursor(int x, int y) {
-    // Larger arrow cursor (15x18) with border for visibility
-    const int cursor_data[18] = {
-        0b111100000000000,
-        0b110110000000000,
-        0b110011000000000,
-        0b110001100000000,
-        0b110000110000000,
-        0b110000011000000,
-        0b110000001100000,
-        0b110000000110000,
-        0b110000000011000,
-        0b110000110001100,
-        0b110001111000110,
-        0b110011001100011,
-        0b110110000110001,
-        0b111100000011000,
-        0b110000000001100,
-        0b000000000000110,
-        0b000000000000011,
-        0b000000000000000,
-    };
-    
-    for (int dy = 0; dy < 18 && y + dy < 200; dy++) {
-        for (int dx = 0; dx < 15 && x + dx < 320; dx++) {
-            if (cursor_data[dy] & (1 << (14 - dx))) {
-                // Draw white pixel
-                vga_setpixel(x + dx, y + dy, COLOR_CURSOR);
-            }
-        }
+// Helper function to append string safely
+static void safe_append(char *dest, const char *src, int max) {
+    int len = 0;
+    while (dest[len] && len < max - 1) len++;
+    int i = 0;
+    while (src[i] && len < max - 1) {
+        dest[len++] = src[i++];
     }
-    
-    // Draw black border around cursor for visibility
-    for (int dy = 0; dy < 18 && y + dy < 200; dy++) {
-        for (int dx = 0; dx < 15 && x + dx < 320; dx++) {
-            int is_cursor = cursor_data[dy] & (1 << (14 - dx));
-            if (is_cursor) {
-                // Check if edge pixel (has non-cursor neighbor)
-                int is_edge = 0;
-                if (dx == 0 || !(cursor_data[dy] & (1 << (15 - dx)))) is_edge = 1;
-                if (dx == 14 || !(cursor_data[dy] & (1 << (13 - dx)))) is_edge = 1;
-                if (dy == 0 || !(cursor_data[dy-1] & (1 << (14 - dx)))) is_edge = 1;
-                if (dy == 17 || !(cursor_data[dy+1] & (1 << (14 - dx)))) is_edge = 1;
-                
-                if (is_edge) {
-                    vga_setpixel(x + dx, y + dy, COLOR_BORDER);
-                }
-            }
-        }
-    }
+    dest[len] = 0;
 }
 
-// Draw taskbar
-static void draw_taskbar(void) {
-    vga_fill_rect(0, 200 - TASKBAR_HEIGHT, 320, TASKBAR_HEIGHT, COLOR_TASKBAR);
-    vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
-    
-    // Draw keyboard help
-    vga_draw_string(175, 200 - TASKBAR_HEIGHT + 4, "E:Start X:Close Tab:Switch", COLOR_TITLEBAR_TEXT);
-    
-    // Draw window count
-    if (active_window >= 0) {
-        char win_info[16];
-        win_info[0] = 'W';
-        win_info[1] = 'i';
-        win_info[2] = 'n';
-        win_info[3] = ':';
-        char num[8];
-        itoa_u(active_window + 1, num);
-        int j = 0;
-        while (num[j]) {
-            win_info[4 + j] = num[j];
-            j++;
-        }
-        win_info[4 + j] = 0;
-        vga_draw_string(65, 200 - TASKBAR_HEIGHT + 4, win_info, COLOR_TITLEBAR_TEXT);
-    }
-}
-
-// Draw a window
-static void draw_window(int idx) {
-    GUIWindow *w = &windows[idx];
-    if (!w->active) return;
-    
-    int available_height = 200 - TASKBAR_HEIGHT;
-    if (w->y + w->height > available_height) {
-        w->y = available_height - w->height;
-    }
-    if (w->y < 0) w->y = 0;
-    if (w->x < 0) w->x = 0;
-    if (w->x + w->width > 320) w->x = 320 - w->width;
-    
-    // Draw title bar
-    uint8_t titlebar_color = (idx == active_window) ? COLOR_TITLEBAR : COLOR_BUTTON;
-    vga_fill_rect(w->x, w->y, w->width, TITLEBAR_HEIGHT, titlebar_color);
-    vga_draw_rect(w->x, w->y, w->width, TITLEBAR_HEIGHT, COLOR_BORDER);
-    
-    // Draw title text
-    vga_draw_string(w->x + 4, w->y + 2, w->title, COLOR_TITLEBAR_TEXT);
-    
-    // Draw close button
-    int close_x = w->x + w->width - 12;
-    vga_fill_rect(close_x, w->y + 2, 10, 8, COLOR_BUTTON);
-    vga_draw_rect(close_x, w->y + 2, 10, 8, COLOR_BORDER);
-    vga_draw_string(close_x + 2, w->y + 2, "X", COLOR_TEXT);
-    
-    // Draw window content area
-    vga_fill_rect(w->x, w->y + TITLEBAR_HEIGHT, w->width, 
-                  w->height - TITLEBAR_HEIGHT, COLOR_WINDOW_BG);
-    vga_draw_rect(w->x, w->y + TITLEBAR_HEIGHT, w->width, 
-                  w->height - TITLEBAR_HEIGHT, COLOR_BORDER);
-    
-    // Draw content text
-    int cx = w->x + 4;
-    int cy = w->y + TITLEBAR_HEIGHT + 4;
-    for (int i = 0; w->content[i] && cy < w->y + w->height - 8; i++) {
-        if (w->content[i] == '\n') {
-            cy += 10;
-            cx = w->x + 4;
-        } else {
-            if (cx + 8 < w->x + w->width - 4) {
-                vga_draw_char(cx, cy, w->content[i], COLOR_TEXT);
-                cx += 8;
-            }
-        }
-    }
+// Draw a box
+static void draw_box(int x, int y, int w, int h, uint8_t color) {
+    vga_fill_rect(x, y, w, h, color);
+    vga_draw_rect(x, y, w, h, COLOR_BORDER);
 }
 
 // Create a new window
@@ -187,17 +67,15 @@ static int create_window(const char *title, int x, int y, int w, int h) {
             windows[i].y = y;
             windows[i].width = w;
             windows[i].height = h;
-            windows[i].dragging = 0;
             
-            // Copy title
             int j = 0;
             while (title[j] && j < 31) {
                 windows[i].title[j] = title[j];
                 j++;
             }
             windows[i].title[j] = 0;
-            
             windows[i].content[0] = 0;
+            
             active_window = i;
             return i;
         }
@@ -217,18 +95,106 @@ static void set_window_content(int idx, const char *content) {
     windows[idx].content[i] = 0;
 }
 
-// Check if point is in rectangle
-static int point_in_rect(int px, int py, int x, int y, int w, int h) {
-    return px >= x && px < x + w && py >= y && py < y + h;
+// Draw a window
+static void draw_window(int idx) {
+    GUIWindow *w = &windows[idx];
+    if (!w->active) return;
+    
+    // Clamp position
+    if (w->y < 0) w->y = 0;
+    if (w->x < 0) w->x = 0;
+    if (w->x + w->width > 320) w->x = 320 - w->width;
+    if (w->y + w->height > 200 - TASKBAR_HEIGHT) 
+        w->y = 200 - TASKBAR_HEIGHT - w->height;
+    
+    // Draw title bar
+    uint8_t color = (idx == active_window) ? COLOR_TITLEBAR : COLOR_BUTTON;
+    vga_fill_rect(w->x, w->y, w->width, TITLEBAR_HEIGHT, color);
+    vga_draw_rect(w->x, w->y, w->width, TITLEBAR_HEIGHT, COLOR_BORDER);
+    
+    // Draw title
+    int tx = w->x + 4;
+    for (int i = 0; w->title[i] && tx + (i * 8) < w->x + w->width - 16; i++) {
+        vga_draw_char(tx + (i * 8), w->y + 2, w->title[i], COLOR_TITLEBAR_TEXT);
+    }
+    
+    // Draw close button
+    int cx = w->x + w->width - 12;
+    vga_fill_rect(cx, w->y + 2, 10, 8, COLOR_BUTTON);
+    vga_draw_rect(cx, w->y + 2, 10, 8, COLOR_BORDER);
+    vga_draw_char(cx + 1, w->y + 2, 'X', COLOR_TEXT);
+    
+    // Draw content area
+    vga_fill_rect(w->x, w->y + TITLEBAR_HEIGHT, w->width, 
+                  w->height - TITLEBAR_HEIGHT, COLOR_WINDOW_BG);
+    vga_draw_rect(w->x, w->y + TITLEBAR_HEIGHT, w->width, 
+                  w->height - TITLEBAR_HEIGHT, COLOR_BORDER);
+    
+    // Draw content
+    int cx = w->x + 4;
+    int cy = w->y + TITLEBAR_HEIGHT + 4;
+    int max_chars = (w->width - 8) / 8;
+    
+    for (int i = 0; w->content[i] && cy < w->y + w->height - 8; i++) {
+        if (w->content[i] == '\n') {
+            cy += 10;
+            cx = w->x + 4;
+        } else {
+            int pos = (cx - (w->x + 4)) / 8;
+            if (pos < max_chars) {
+                vga_draw_char(cx, cy, w->content[i], COLOR_TEXT);
+                cx += 8;
+            } else {
+                cy += 10;
+                cx = w->x + 4;
+                if (cy < w->y + w->height - 8) {
+                    vga_draw_char(cx, cy, w->content[i], COLOR_TEXT);
+                    cx += 8;
+                }
+            }
+        }
+    }
 }
 
-// Handle keyboard input
+// Draw taskbar
+static void draw_taskbar(void) {
+    vga_fill_rect(0, 200 - TASKBAR_HEIGHT, 320, TASKBAR_HEIGHT, COLOR_TASKBAR);
+    vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
+    vga_draw_string(175, 200 - TASKBAR_HEIGHT + 4, "E:Menu X:Close", COLOR_TITLEBAR_TEXT);
+    
+    if (active_window >= 0) {
+        char info[16] = "Win:";
+        char num[8];
+        itoa_u(active_window + 1, num);
+        safe_append(info, num, 16);
+        vga_draw_string(65, 200 - TASKBAR_HEIGHT + 4, info, COLOR_TITLEBAR_TEXT);
+    }
+}
+
+// Redraw everything
+static void redraw_desktop(void) {
+    vga_clear_screen(COLOR_DESKTOP_BG);
+    
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+        if (windows[i].active && i != active_window) {
+            draw_window(i);
+        }
+    }
+    
+    if (active_window >= 0) {
+        draw_window(active_window);
+    }
+    
+    draw_taskbar();
+}
+
+// Handle keyboard
 static void handle_keyboard(void) {
     if (!keyboard_has_key()) return;
     
     char key = keyboard_get_key();
     
-    // Tab - cycle through windows
+    // Tab - switch windows
     if (key == '\t') {
         int start = active_window;
         do {
@@ -240,11 +206,10 @@ static void handle_keyboard(void) {
         return;
     }
     
-    // X - close active window (Esc doesn't work in QEMU)
+    // X - close window
     if (key == 'x' || key == 'X') {
         if (active_window >= 0) {
             windows[active_window].active = 0;
-            // Find next active window
             active_window = -1;
             for (int i = 0; i < MAX_WINDOWS; i++) {
                 if (windows[i].active) {
@@ -258,18 +223,15 @@ static void handle_keyboard(void) {
     }
     
     if (active_window < 0) return;
-    
     GUIWindow *w = &windows[active_window];
     
-    // Direct WASD controls for moving windows (no Q needed)
+    // WASD - move window
     if (key == 'w' || key == 'W') {
         w->y -= 5;
         if (w->y < 0) w->y = 0;
         needs_redraw = 1;
     } else if (key == 's' || key == 'S') {
         w->y += 5;
-        if (w->y + w->height > 200 - TASKBAR_HEIGHT) 
-            w->y = 200 - TASKBAR_HEIGHT - w->height;
         needs_redraw = 1;
     } else if (key == 'a' || key == 'A') {
         w->x -= 5;
@@ -277,108 +239,88 @@ static void handle_keyboard(void) {
         needs_redraw = 1;
     } else if (key == 'd' || key == 'D') {
         w->x += 5;
-        if (w->x + w->width > 320) w->x = 320 - w->width;
         needs_redraw = 1;
     }
-    
-    // Space - open command window
+    // E - Start Menu
+    else if (key == 'e' || key == 'E') {
+        int win = create_window("Start Menu", 10, 140, 140, 90);
+        if (win >= 0) {
+            set_window_content(win,
+                "Applications:\n\n"
+                "H - Help\n"
+                "M - Memory\n"
+                "F - Files\n"
+                "C - Calculator\n\n"
+                "Press key to open");
+        }
+        needs_redraw = 1;
+    }
+    // Space - commands
     else if (key == ' ') {
         int win = create_window("Commands", 80, 60, 160, 100);
         if (win >= 0) {
             set_window_content(win,
-                "Keyboard Shortcuts:\n\n"
-                "Tab - Switch windows\n"
-                "X - Close window\n"
-                "WASD - Move window\n\n"
-                "E - Start Menu\n"
+                "Keys:\n\n"
+                "Tab - Switch\n"
+                "X - Close\n"
+                "WASD - Move\n"
+                "E - Menu\n"
                 "H - Help\n"
                 "M - Memory\n"
-                "F - Files\n"
-                "C - Calculator");
+                "F - Files");
         }
         needs_redraw = 1;
     }
-    
     // H - Help
     else if (key == 'h' || key == 'H') {
         int win = create_window("Help", 40, 30, 240, 100);
         if (win >= 0) {
             set_window_content(win,
-                "OpenComp Desktop Help\n\n"
-                "Tab switches windows.\n\n"
-                "WASD moves the active\n"
-                "window around.\n\n"
-                "X closes windows.\n\n"
-                "Space shows commands.");
+                "OpenComp Help\n\n"
+                "Tab switches windows\n"
+                "WASD moves windows\n"
+                "X closes windows\n"
+                "E opens menu\n\n"
+                "Press F for files");
         }
         needs_redraw = 1;
     }
-    
-    // M - Memory info
+    // M - Memory
     else if (key == 'm' || key == 'M') {
         int win = create_window("Memory", 60, 50, 200, 70);
         if (win >= 0) {
-            char buf[256];
+            char buf[256] = "Memory:\n\nFree: ";
             char num[32];
-            buf[0] = 0;
-            str_append(buf, "Memory Status:\n\n");
-            str_append(buf, "Free: ");
             itoa_u(get_free_pages() * 4, num);
-            str_append(buf, num);
-            str_append(buf, " KB\n");
-            str_append(buf, "Used: ");
+            safe_append(buf, num, 256);
+            safe_append(buf, " KB\nUsed: ", 256);
             itoa_u((4096 - get_free_pages()) * 4, num);
-            str_append(buf, num);
-            str_append(buf, " KB");
+            safe_append(buf, num, 256);
+            safe_append(buf, " KB", 256);
             set_window_content(win, buf);
         }
         needs_redraw = 1;
     }
-    
-    // C - Calculator
-    else if (key == 'c' || key == 'C') {
-        int win = create_window("Calculator", 100, 40, 120, 90);
-        if (win >= 0) {
-            set_window_content(win,
-                "Calculator\n\n"
-                "Coming soon!\n\n"
-                "Will support:\n"
-                "+ - * /\n"
-                "Basic operations");
-        }
-        needs_redraw = 1;
-    }
-    
-    // F - File Browser
+    // F - File browser
     else if (key == 'f' || key == 'F') {
         int win = create_window("Files", 30, 20, 260, 140);
         if (win >= 0) {
-            char buf[512];
-            buf[0] = 0;
-            
-            int file_count = fs_get_file_count();
-            safe_str_append(buf, "File Browser\n\n", 512);
-            
+            char buf[512] = "File Browser\n\n";
             char num[16];
-            itoa_u(file_count, num);
-            safe_str_append(buf, "Total files: ", 512);
-            safe_str_append(buf, num, 512);
-            safe_str_append(buf, "\n\n", 512);
+            int count = fs_get_file_count();
+            itoa_u(count, num);
+            safe_append(buf, "Files: ", 512);
+            safe_append(buf, num, 512);
+            safe_append(buf, "\n\n", 512);
             
-            // List files (show up to 8 files to fit in window)
-            for (int i = 0; i < file_count && i < 8; i++) {
+            for (int i = 0; i < count && i < 8; i++) {
                 char name[128];
                 uint32_t size;
                 int is_dir;
                 
                 if (fs_get_file_info(i, name, &size, &is_dir)) {
-                    if (is_dir) {
-                        safe_str_append(buf, "[DIR] ", 512);
-                    } else {
-                        safe_str_append(buf, "[   ] ", 512);
-                    }
+                    safe_append(buf, is_dir ? "[DIR] " : "[   ] ", 512);
                     
-                    // Add filename (truncate if too long)
                     char short_name[25];
                     int j = 0;
                     while (name[j] && j < 24) {
@@ -387,92 +329,65 @@ static void handle_keyboard(void) {
                     }
                     short_name[j] = 0;
                     
-                    safe_str_append(buf, short_name, 512);
-                    safe_str_append(buf, "\n", 512);
+                    safe_append(buf, short_name, 512);
+                    safe_append(buf, "\n", 512);
                 }
             }
             
-            if (file_count > 8) {
-                safe_str_append(buf, "\n...more files...", 512);
+            if (count > 8) {
+                safe_append(buf, "\n...more...", 512);
             }
             
             set_window_content(win, buf);
         }
         needs_redraw = 1;
     }
-    
-    // E - Start Menu
-    else if (key == 'e' || key == 'E') {
-        int win = create_window("Start Menu", 10, 150, 140, 80);
+    // C - Calculator
+    else if (key == 'c' || key == 'C') {
+        int win = create_window("Calculator", 100, 40, 120, 90);
         if (win >= 0) {
             set_window_content(win,
-                "Applications:\n\n"
-                "H - Help\n"
-                "M - Memory Info\n"
-                "F - File Browser\n"
-                "C - Calculator\n\n"
-                "Press key to open");
+                "Calculator\n\n"
+                "Coming soon!\n\n"
+                "Will support:\n"
+                "+ - * /");
         }
         needs_redraw = 1;
     }
 }
 
-// Redraw everything
-static void redraw_desktop(void) {
-    // Clear background
-    vga_clear_screen(COLOR_DESKTOP_BG);
-    
-    // Draw windows (back to front)
-    for (int i = 0; i < MAX_WINDOWS; i++) {
-        if (windows[i].active && i != active_window) {
-            draw_window(i);
-        }
-    }
-    
-    // Draw active window on top
-    if (active_window >= 0) {
-        draw_window(active_window);
-    }
-    
-    // Draw taskbar
-    draw_taskbar();
-}
-
+// Init
 static void gui_desktop_init(void) {
-    // Initialize windows
     for (int i = 0; i < MAX_WINDOWS; i++) {
         windows[i].active = 0;
     }
     
-    // Create welcome window
-    int win = create_window("Welcome to OpenComp", 15, 6, 200, 100);
+    int win = create_window("Welcome", 15, 6, 200, 100);
     if (win >= 0) {
         set_window_content(win,
-            "OpenComp GUI Desktop\n\n"
-            "Press H for help\n"
-            "Press Space for menu\n\n"
-            "Move windows:\n"
-            "Just use WASD keys!");
+            "OpenComp Desktop\n\n"
+            "Press E for menu\n"
+            "Press H for help\n\n"
+            "WASD moves windows");
     }
     
-    // Create info window
     win = create_window("System", 20, 80, 160, 80);
     if (win >= 0) {
         set_window_content(win,
             "Graphics: 320x200\n"
             "Mode: VGA 13h\n"
             "Keyboard: PS/2\n\n"
-            "Press Tab to switch!");
+            "Press Tab!");
     }
     
     needs_redraw = 1;
-    puts("[gui_desktop] Graphical desktop initialized\n");
+    puts("[gui_desktop] GUI initialized\n");
 }
 
+// Tick
 static void gui_desktop_tick(void) {
     handle_keyboard();
     
-    // Only redraw when needed (not every tick!)
     if (needs_redraw) {
         redraw_desktop();
         needs_redraw = 0;
