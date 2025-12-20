@@ -285,7 +285,7 @@ static void handle_keyboard(void) {
     
     // Space - open command window
     else if (key == ' ') {
-        int win = create_window("Commands", 80, 60, 160, 80);
+        int win = create_window("Commands", 80, 60, 160, 90);
         if (win >= 0) {
             set_window_content(win,
                 "Keyboard Shortcuts:\n\n"
@@ -295,6 +295,7 @@ static void handle_keyboard(void) {
                 "Space - Commands\n"
                 "H - Help\n"
                 "M - Memory\n"
+                "F - Files\n"
                 "C - Calculator");
         }
         needs_redraw = 1;
