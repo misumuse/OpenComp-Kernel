@@ -105,18 +105,8 @@ static void draw_taskbar(void) {
     vga_fill_rect(0, 200 - TASKBAR_HEIGHT, 320, TASKBAR_HEIGHT, COLOR_TASKBAR);
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
     
-    // Draw mouse position for debugging
-    char pos_str[32];
-    char num[16];
-    pos_str[0] = 'X';
-    pos_str[1] = ':';
-    pos_str[2] = 0;
-    itoa_u(mouse_x, num);
-    str_append(pos_str, num);
-    str_append(pos_str, " Y:");
-    itoa_u(mouse_y, num);
-    str_append(pos_str, num);
-    vga_draw_string(240, 200 - TASKBAR_HEIGHT + 4, pos_str, COLOR_TITLEBAR_TEXT);
+    // Draw keyboard help
+    vga_draw_string(180, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch Esc:Close", COLOR_TITLEBAR_TEXT);
     
     // Draw window buttons in taskbar
     int btn_x = 80;
@@ -232,58 +222,121 @@ static int point_in_rect(int px, int py, int x, int y, int w, int h) {
     return px >= x && px < x + w && py >= y && py < y + h;
 }
 
-// Handle mouse input
-static void handle_mouse(void) {
-    mouse_get_position(&mouse_x, &mouse_y);
-    uint8_t buttons = mouse_get_buttons();
-    int left_click = (buttons & 0x01) && !(last_mouse_buttons & 0x01);
-    int left_held = buttons & 0x01;
-    int left_released = !(buttons & 0x01) && (last_mouse_buttons & 0x01);
+// Handle keyboard input
+static void handle_keyboard(void) {
+    if (!keyboard_has_key()) return;
     
-    // Handle window dragging
-    if (active_window >= 0 && windows[active_window].dragging) {
-        if (left_held) {
-            windows[active_window].x = mouse_x - windows[active_window].drag_offset_x;
-            windows[active_window].y = mouse_y - windows[active_window].drag_offset_y;
-        } else {
-            windows[active_window].dragging = 0;
+    char key = keyboard_get_key();
+    
+    // Tab - cycle through windows
+    if (key == '\t') {
+        int start = active_window;
+        do {
+            active_window++;
+            if (active_window >= MAX_WINDOWS) active_window = 0;
+            if (windows[active_window].active) break;
+        } while (active_window != start);
+        return;
+    }
+    
+    // Escape - close active window
+    if (key == 27) { // ESC
+        if (active_window >= 0) {
+            windows[active_window].active = 0;
+            // Find next active window
+            active_window = -1;
+            for (int i = 0; i < MAX_WINDOWS; i++) {
+                if (windows[i].active) {
+                    active_window = i;
+                    break;
+                }
+            }
+        }
+        return;
+    }
+    
+    if (active_window < 0) return;
+    GUIWindow *w = &windows[active_window];
+    
+    // Arrow keys - move window (using WASD for now since arrow keys are special)
+    if (key == 'w' || key == 'W') {
+        w->y -= 5;
+        if (w->y < 0) w->y = 0;
+    } else if (key == 's' || key == 'S') {
+        w->y += 5;
+        if (w->y + w->height > 200 - TASKBAR_HEIGHT) 
+            w->y = 200 - TASKBAR_HEIGHT - w->height;
+    } else if (key == 'a' || key == 'A') {
+        w->x -= 5;
+        if (w->x < 0) w->x = 0;
+    } else if (key == 'd' || key == 'D') {
+        w->x += 5;
+        if (w->x + w->width > 320) w->x = 320 - w->width;
+    }
+    
+    // Space - open command window
+    else if (key == ' ') {
+        int win = create_window("Commands", 80, 60, 160, 80);
+        if (win >= 0) {
+            set_window_content(win,
+                "Keyboard Controls:\n\n"
+                "Tab - Switch windows\n"
+                "Esc - Close window\n"
+                "WASD - Move window\n"
+                "Space - This menu\n"
+                "H - Help window\n"
+                "M - Memory info\n"
+                "C - Calculator");
         }
     }
     
-    // Handle clicks
-    if (left_click) {
-        // Check windows from top to bottom
-        for (int i = MAX_WINDOWS - 1; i >= 0; i--) {
-            if (!windows[i].active) continue;
-            
-            GUIWindow *w = &windows[i];
-            
-            // Check close button
-            int close_x = w->x + w->width - 12;
-            if (point_in_rect(mouse_x, mouse_y, close_x, w->y + 2, 10, 8)) {
-                w->active = 0;
-                if (active_window == i) active_window = -1;
-                break;
-            }
-            
-            // Check title bar for dragging
-            if (point_in_rect(mouse_x, mouse_y, w->x, w->y, w->width, TITLEBAR_HEIGHT)) {
-                active_window = i;
-                w->dragging = 1;
-                w->drag_offset_x = mouse_x - w->x;
-                w->drag_offset_y = mouse_y - w->y;
-                break;
-            }
-            
-            // Check window body
-            if (point_in_rect(mouse_x, mouse_y, w->x, w->y, w->width, w->height)) {
-                active_window = i;
-                break;
-            }
+    // H - Help
+    else if (key == 'h' || key == 'H') {
+        int win = create_window("Help", 40, 30, 240, 100);
+        if (win >= 0) {
+            set_window_content(win,
+                "OpenComp Desktop Help\n\n"
+                "Use Tab to switch between\n"
+                "open windows.\n\n"
+                "WASD keys move the active\n"
+                "window around.\n\n"
+                "Press Esc to close a window.\n\n"
+                "Press Space for commands.");
         }
     }
     
-    last_mouse_buttons = buttons;
+    // M - Memory info
+    else if (key == 'm' || key == 'M') {
+        int win = create_window("Memory", 60, 50, 200, 70);
+        if (win >= 0) {
+            char buf[256];
+            char num[32];
+            buf[0] = 0;
+            str_append(buf, "Memory Status:\n\n");
+            str_append(buf, "Free: ");
+            itoa_u(get_free_pages() * 4, num);
+            str_append(buf, num);
+            str_append(buf, " KB\n");
+            str_append(buf, "Used: ");
+            itoa_u((4096 - get_free_pages()) * 4, num);
+            str_append(buf, num);
+            str_append(buf, " KB");
+            set_window_content(win, buf);
+        }
+    }
+    
+    // C - Calculator
+    else if (key == 'c' || key == 'C') {
+        int win = create_window("Calculator", 100, 40, 120, 90);
+        if (win >= 0) {
+            set_window_content(win,
+                "Calculator\n\n"
+                "Coming soon!\n\n"
+                "Will support:\n"
+                "+ - * /\n"
+                "Basic operations");
+        }
+    }
 }
 
 // Redraw everything
@@ -305,9 +358,6 @@ static void redraw_desktop(void) {
     
     // Draw taskbar
     draw_taskbar();
-    
-    // Draw cursor last
-    draw_cursor(mouse_x, mouse_y);
 }
 
 static void gui_desktop_init(void) {
@@ -342,7 +392,7 @@ static void gui_desktop_init(void) {
 static int tick_counter = 0;
 
 static void gui_desktop_tick(void) {
-    handle_mouse();
+    handle_keyboard();
     
     // Redraw at 20 FPS
     if ((tick_counter++ % 5) == 0) {
