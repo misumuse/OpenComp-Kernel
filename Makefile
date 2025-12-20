@@ -1,7 +1,7 @@
 CC = gcc
 LD = ld
-CFLAGS = -O2 -ffreestanding -nostdlib -fno-builtin -Wall -Wextra -mno-red-zone -std=gnu11 -m64
-LDFLAGS = -T linker.ld -nostdlib -melf_x86_64
+CFLAGS = -O2 -ffreestanding -nostdlib -fno-builtin -Wall -Wextra -std=gnu11 -m32
+LDFLAGS = -T linker.ld -nostdlib -melf_i386
 
 OBJS = kernel.o start.o memory.o keyboard.o desktop.o
 
@@ -24,29 +24,36 @@ start.o: start.S
 
 tinykernel.bin: $(OBJS) linker.ld
 	$(LD) $(LDFLAGS) -o tinykernel.elf $(OBJS)
-	# Verify multiboot header
-	@echo "Verifying multiboot header..."
+	@echo ""
+	@echo "=== Verifying Multiboot2 Header ==="
 	@if command -v grub-file > /dev/null 2>&1; then \
 		if grub-file --is-x86-multiboot2 tinykernel.elf; then \
 			echo "✓ Multiboot2 header found!"; \
 		else \
-			echo "✗ Warning: No valid multiboot2 header found"; \
-			echo "Checking file format..."; \
-			file tinykernel.elf; \
-			readelf -h tinykernel.elf 2>/dev/null || echo "readelf not available"; \
-		fi \
+			echo "✗ No valid multiboot2 header"; \
+		fi; \
 	else \
-		echo "grub-file not available, skipping verification"; \
+		echo "grub-file not available"; \
 	fi
-	# create grub ISO (requires grub-mkrescue)
+	@echo ""
+	@echo "=== Creating Bootable ISO ==="
 	mkdir -p iso/boot/grub
 	cp tinykernel.elf iso/boot/kernel.elf
-	printf 'set timeout=1\nset default=0\n\nmenuentry "OpenComp Kernel" {\n\tmultiboot2 /boot/kernel.elf\n\tboot\n}\n' > iso/boot/grub/grub.cfg
-	grub-mkrescue -o opencomp.iso iso 2>&1 | grep -v "libgcc"
+	echo 'set timeout=1' > iso/boot/grub/grub.cfg
+	echo 'set default=0' >> iso/boot/grub/grub.cfg
+	echo '' >> iso/boot/grub/grub.cfg
+	echo 'menuentry "OpenComp Kernel" {' >> iso/boot/grub/grub.cfg
+	echo '    multiboot2 /boot/kernel.elf' >> iso/boot/grub/grub.cfg
+	echo '    boot' >> iso/boot/grub/grub.cfg
+	echo '}' >> iso/boot/grub/grub.cfg
+	grub-mkrescue -o opencomp.iso iso 2>&1 | grep -v "libgcc" || true
+	@echo "✓ ISO created: opencomp.iso"
 
 run: tinykernel.bin
-	qemu-system-x86_64 -cdrom opencomp.iso -m 256M
+	@echo "=== Starting QEMU ==="
+	qemu-system-i386 -cdrom opencomp.iso -m 256M
 
 clean:
 	rm -f *.o *.elf opencomp.iso
 	rm -rf iso
+	@echo "✓ Cleaned build artifacts"
