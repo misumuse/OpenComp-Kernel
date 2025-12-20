@@ -108,26 +108,24 @@ static void draw_taskbar(void) {
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
     
     // Draw keyboard help
-    vga_draw_string(185, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch X:Close", COLOR_TITLEBAR_TEXT);
+    vga_draw_string(175, 200 - TASKBAR_HEIGHT + 4, "S:Start X:Close Tab:Switch", COLOR_TITLEBAR_TEXT);
     
-    // Draw window buttons in taskbar
-    int btn_x = 80;
-    for (int i = 0; i < MAX_WINDOWS; i++) {
-        if (windows[i].active) {
-            vga_fill_rect(btn_x, 200 - TASKBAR_HEIGHT + 2, 40, 12, 
-                         i == active_window ? COLOR_TITLEBAR : COLOR_BUTTON);
-            vga_draw_rect(btn_x, 200 - TASKBAR_HEIGHT + 2, 40, 12, COLOR_BORDER);
-            
-            // Draw first few chars of title
-            char short_title[6];
-            for (int j = 0; j < 5 && windows[i].title[j]; j++) {
-                short_title[j] = windows[i].title[j];
-            }
-            short_title[5] = 0;
-            vga_draw_string(btn_x + 2, 200 - TASKBAR_HEIGHT + 4, short_title, COLOR_TEXT);
-            
-            btn_x += 44;
+    // Draw window count
+    if (active_window >= 0) {
+        char win_info[16];
+        win_info[0] = 'W';
+        win_info[1] = 'i';
+        win_info[2] = 'n';
+        win_info[3] = ':';
+        char num[8];
+        itoa_u(active_window + 1, num);
+        int j = 0;
+        while (num[j]) {
+            win_info[4 + j] = num[j];
+            j++;
         }
+        win_info[4 + j] = 0;
+        vga_draw_string(65, 200 - TASKBAR_HEIGHT + 4, win_info, COLOR_TITLEBAR_TEXT);
     }
 }
 
@@ -285,14 +283,14 @@ static void handle_keyboard(void) {
     
     // Space - open command window
     else if (key == ' ') {
-        int win = create_window("Commands", 80, 60, 160, 90);
+        int win = create_window("Commands", 80, 60, 160, 100);
         if (win >= 0) {
             set_window_content(win,
                 "Keyboard Shortcuts:\n\n"
                 "Tab - Switch windows\n"
                 "X - Close window\n"
-                "WASD - Move window\n"
-                "Space - Commands\n"
+                "WASD - Move window\n\n"
+                "S - Start Menu\n"
                 "H - Help\n"
                 "M - Memory\n"
                 "F - Files\n"
@@ -359,42 +357,61 @@ static void handle_keyboard(void) {
             buf[0] = 0;
             
             int file_count = fs_get_file_count();
-            str_append(buf, "File Browser\n\n");
-            str_append(buf, "Files: ");
+            safe_str_append(buf, "File Browser\n\n", 512);
+            
             char num[16];
             itoa_u(file_count, num);
-            str_append(buf, num);
-            str_append(buf, "\n\n");
+            safe_str_append(buf, "Total files: ", 512);
+            safe_str_append(buf, num, 512);
+            safe_str_append(buf, "\n\n", 512);
             
-            // List files
-            for (int i = 0; i < file_count && i < 10; i++) {
+            // List files (show up to 8 files to fit in window)
+            for (int i = 0; i < file_count && i < 8; i++) {
                 char name[128];
                 uint32_t size;
                 int is_dir;
                 
                 if (fs_get_file_info(i, name, &size, &is_dir)) {
                     if (is_dir) {
-                        str_append(buf, "[DIR] ");
+                        safe_str_append(buf, "[DIR] ", 512);
                     } else {
-                        str_append(buf, "      ");
+                        safe_str_append(buf, "[   ] ", 512);
                     }
                     
                     // Add filename (truncate if too long)
+                    char short_name[25];
                     int j = 0;
-                    while (name[j] && j < 20) {
-                        buf[buf[0] ? (int)(buf + 512 - buf - 1) : 0] = name[j];
+                    while (name[j] && j < 24) {
+                        short_name[j] = name[j];
                         j++;
                     }
+                    short_name[j] = 0;
                     
-                    str_append(buf, "\n");
+                    safe_str_append(buf, short_name, 512);
+                    safe_str_append(buf, "\n", 512);
                 }
             }
             
-            if (file_count > 10) {
-                str_append(buf, "\n...more files...");
+            if (file_count > 8) {
+                safe_str_append(buf, "\n...more files...", 512);
             }
             
             set_window_content(win, buf);
+        }
+        needs_redraw = 1;
+    }
+    
+    // S - Start Menu
+    else if (key == 's' || key == 'S') {
+        int win = create_window("Start Menu", 10, 150, 140, 80);
+        if (win >= 0) {
+            set_window_content(win,
+                "Applications:\n\n"
+                "H - Help\n"
+                "M - Memory Info\n"
+                "F - File Browser\n"
+                "C - Calculator\n\n"
+                "Press key to open");
         }
         needs_redraw = 1;
     }
