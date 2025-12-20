@@ -61,7 +61,7 @@ tinykernel.bin: $(OBJS) linker.ld
 run: tinykernel.bin
 	@echo "=== Starting QEMU ==="
 	@echo "Click in window to grab mouse, Ctrl+Alt+G to release"
-	qemu-system-i386 -cdrom opencomp.iso -m 256M -show-cursor
+	qemu-system-i386 -cdrom opencomp.iso -m 256M
 
 clean:
 	rm -f *.o *.elf opencomp.iso
