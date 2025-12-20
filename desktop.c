@@ -69,20 +69,21 @@ static void draw_window(int idx) {
         vga_putchar_at(title_x + i, w->y, w->title[i], color);
     }
     
-    // Draw content
-    int content_idx = 0;
-    for (int row = 1; row < w->height - 1; row++) {
-        for (int col = 1; col < w->width - 1; col++) {
-            char c = w->content[content_idx];
-            if (c == 0) break;
-            if (c == '\n') {
-                content_idx++;
-                break;
+    // Draw content - properly handle each character
+    int content_x = w->x + 2;
+    int content_y = w->y + 2;
+    int max_width = w->width - 4;
+    
+    for (int i = 0; w->content[i] && content_y < w->y + w->height - 1; i++) {
+        if (w->content[i] == '\n') {
+            content_y++;
+            content_x = w->x + 2;
+        } else {
+            if (content_x < w->x + max_width) {
+                vga_putchar_at(content_x, content_y, w->content[i], color);
+                content_x++;
             }
-            vga_putchar_at(w->x + col, w->y + row, c, color);
-            content_idx++;
         }
-        if (w->content[content_idx] == 0) break;
     }
 }
 
@@ -150,7 +151,7 @@ static void set_window_content(int idx, const char *content) {
     
     int i = 0;
     while (content[i] && i < 255) {
-        windows[i].content[i] = content[i];
+        windows[idx].content[i] = content[i];
         i++;
     }
     windows[idx].content[i] = 0;
