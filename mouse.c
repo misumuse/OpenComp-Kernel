@@ -115,22 +115,28 @@ static void mouse_tick(void) {
             // Process packet
             mouse_buttons = mouse_byte[0] & 0x07;
             
+            // Get raw deltas (signed 9-bit values)
             int dx = mouse_byte[1];
             int dy = mouse_byte[2];
             
-            // Handle sign extension
-            if (mouse_byte[0] & 0x10) dx |= 0xFFFFFF00;
-            if (mouse_byte[0] & 0x20) dy |= 0xFFFFFF00;
+            // Sign extension for negative values
+            if (mouse_byte[0] & 0x10) dx -= 256;
+            if (mouse_byte[0] & 0x20) dy -= 256;
             
-            // Update position
+            // Apply sensitivity scaling (adjust these values to tune)
+            // Smaller divisor = faster, larger = slower
+            dx = (dx * 3) / 4;  // 75% speed
+            dy = (dy * 3) / 4;
+            
+            // Update position with proper Y inversion
             mouse_x += dx;
-            mouse_y -= dy; // Y is inverted
+            mouse_y -= dy;  // PS/2 Y is inverted from screen Y
             
-            // Clamp to screen
+            // Clamp to screen bounds
             if (mouse_x < 0) mouse_x = 0;
-            if (mouse_x >= 320) mouse_x = 319;
+            if (mouse_x > 319) mouse_x = 319;
             if (mouse_y < 0) mouse_y = 0;
-            if (mouse_y >= 200) mouse_y = 199;
+            if (mouse_y > 199) mouse_y = 199;
             
             break;
     }
