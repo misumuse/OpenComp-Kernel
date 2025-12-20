@@ -106,7 +106,7 @@ static void draw_taskbar(void) {
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
     
     // Draw keyboard help
-    vga_draw_string(180, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch Esc:Close", COLOR_TITLEBAR_TEXT);
+    vga_draw_string(165, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch Q+WASD:Move", COLOR_TITLEBAR_TEXT);
     
     // Draw window buttons in taskbar
     int btn_x = 80;
@@ -223,10 +223,19 @@ static int point_in_rect(int px, int py, int x, int y, int w, int h) {
 }
 
 // Handle keyboard input
+static int ctrl_held = 0;
+
 static void handle_keyboard(void) {
     if (!keyboard_has_key()) return;
     
     char key = keyboard_get_key();
+    
+    // Track Ctrl key (using 'q' as Ctrl since real Ctrl is hard to detect)
+    // User holds Q then presses arrows
+    if (key == 'q' || key == 'Q') {
+        ctrl_held = 1;
+        return;
+    }
     
     // Tab - cycle through windows
     if (key == '\t') {
@@ -236,6 +245,7 @@ static void handle_keyboard(void) {
             if (active_window >= MAX_WINDOWS) active_window = 0;
             if (windows[active_window].active) break;
         } while (active_window != start);
+        needs_redraw = 1;
         return;
     }
     
@@ -252,42 +262,56 @@ static void handle_keyboard(void) {
                 }
             }
         }
+        needs_redraw = 1;
         return;
     }
     
-    if (active_window < 0) return;
+    if (active_window < 0) {
+        ctrl_held = 0;
+        return;
+    }
+    
     GUIWindow *w = &windows[active_window];
     
-    // Arrow keys - move window (using WASD for now since arrow keys are special)
-    if (key == 'w' || key == 'W') {
-        w->y -= 5;
-        if (w->y < 0) w->y = 0;
-    } else if (key == 's' || key == 'S') {
-        w->y += 5;
-        if (w->y + w->height > 200 - TASKBAR_HEIGHT) 
-            w->y = 200 - TASKBAR_HEIGHT - w->height;
-    } else if (key == 'a' || key == 'A') {
-        w->x -= 5;
-        if (w->x < 0) w->x = 0;
-    } else if (key == 'd' || key == 'D') {
-        w->x += 5;
-        if (w->x + w->width > 320) w->x = 320 - w->width;
+    // Ctrl + Arrow keys - move window
+    if (ctrl_held) {
+        if (key == 'w' || key == 'W') {
+            w->y -= 10;
+            if (w->y < 0) w->y = 0;
+            needs_redraw = 1;
+        } else if (key == 's' || key == 'S') {
+            w->y += 10;
+            if (w->y + w->height > 200 - TASKBAR_HEIGHT) 
+                w->y = 200 - TASKBAR_HEIGHT - w->height;
+            needs_redraw = 1;
+        } else if (key == 'a' || key == 'A') {
+            w->x -= 10;
+            if (w->x < 0) w->x = 0;
+            needs_redraw = 1;
+        } else if (key == 'd' || key == 'D') {
+            w->x += 10;
+            if (w->x + w->width > 320) w->x = 320 - w->width;
+            needs_redraw = 1;
+        }
+        ctrl_held = 0;  // Reset after use
+        return;
     }
     
     // Space - open command window
-    else if (key == ' ') {
+    if (key == ' ') {
         int win = create_window("Commands", 80, 60, 160, 80);
         if (win >= 0) {
             set_window_content(win,
-                "Keyboard Controls:\n\n"
+                "Keyboard Shortcuts:\n\n"
                 "Tab - Switch windows\n"
                 "Esc - Close window\n"
-                "WASD - Move window\n"
-                "Space - This menu\n"
-                "H - Help window\n"
-                "M - Memory info\n"
+                "Q+WASD - Move window\n"
+                "Space - Commands\n"
+                "H - Help\n"
+                "M - Memory\n"
                 "C - Calculator");
         }
+        needs_redraw = 1;
     }
     
     // H - Help
@@ -296,13 +320,14 @@ static void handle_keyboard(void) {
         if (win >= 0) {
             set_window_content(win,
                 "OpenComp Desktop Help\n\n"
-                "Use Tab to switch between\n"
-                "open windows.\n\n"
-                "WASD keys move the active\n"
-                "window around.\n\n"
-                "Press Esc to close a window.\n\n"
-                "Press Space for commands.");
+                "Tab switches windows.\n\n"
+                "To move a window:\n"
+                "1. Press Q (like Ctrl)\n"
+                "2. Press W/A/S/D\n\n"
+                "Esc closes windows.\n\n"
+                "Space shows commands.");
         }
+        needs_redraw = 1;
     }
     
     // M - Memory info
@@ -323,6 +348,7 @@ static void handle_keyboard(void) {
             str_append(buf, " KB");
             set_window_content(win, buf);
         }
+        needs_redraw = 1;
     }
     
     // C - Calculator
@@ -336,6 +362,7 @@ static void handle_keyboard(void) {
                 "+ - * /\n"
                 "Basic operations");
         }
+        needs_redraw = 1;
     }
 }
 
@@ -367,13 +394,14 @@ static void gui_desktop_init(void) {
     }
     
     // Create welcome window
-    int win = create_window("Welcome", 60, 40, 200, 100);
+    int win = create_window("Welcome to OpenComp", 15, 6, 200, 100);
     if (win >= 0) {
-        set_window_content(win, 
+        set_window_content(win,
             "OpenComp GUI Desktop\n\n"
-            "Drag windows by title\n"
-            "Click X to close\n\n"
-            "Right click for menu");
+            "Press H for help\n"
+            "Press Space for menu\n\n"
+            "Move windows:\n"
+            "Press Q then WASD");
     }
     
     // Create info window
@@ -382,22 +410,27 @@ static void gui_desktop_init(void) {
         set_window_content(win,
             "Graphics: 320x200\n"
             "Mode: VGA 13h\n"
-            "Mouse: PS/2\n\n"
-            "Components loaded!");
+            "Keyboard: PS/2\n\n"
+            "Press Tab to switch!");
     }
     
+    needs_redraw = 1;
     puts("[gui_desktop] Graphical desktop initialized\n");
 }
 
 static int tick_counter = 0;
+static int needs_redraw = 1;  // Flag to control when to redraw
 
 static void gui_desktop_tick(void) {
     handle_keyboard();
     
-    // Redraw at 20 FPS
-    if ((tick_counter++ % 5) == 0) {
+    // Only redraw when needed (not every tick!)
+    if (needs_redraw) {
         redraw_desktop();
+        needs_redraw = 0;
     }
+    
+    tick_counter++;
 }
 
 __attribute__((section(".compobjs"))) static struct component gui_desktop_component = {
