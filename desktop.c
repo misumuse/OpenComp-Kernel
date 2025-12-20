@@ -157,6 +157,8 @@ static void set_window_content(int idx, const char *content) {
     windows[idx].content[i] = 0;
 }
 
+static int uptime_ticks = 0;
+
 static void handle_command(void) {
     if (command_len == 0) return;
     
@@ -165,30 +167,34 @@ static void handle_command(void) {
     // Parse command
     if (command_buffer[0] == 'h' && command_buffer[1] == 'e' && 
         command_buffer[2] == 'l' && command_buffer[3] == 'p') {
-        int win = create_window("Help", 10, 5, 60, 15);
+        int win = create_window("Help", 10, 5, 60, 16);
         if (win >= 0) {
             set_window_content(win, 
-                "Commands:\n"
-                "help - Show this help\n"
-                "about - About OpenComp\n"
-                "mem - Memory info\n"
-                "time - Show uptime\n"
-                "clear - Close all windows");
+                "Available Commands:\n\n"
+                "help   - Show this help\n"
+                "about  - About OpenComp\n"
+                "mem    - Memory info\n"
+                "time   - Show uptime\n"
+                "colors - Color test\n"
+                "info   - System info\n"
+                "echo   - Echo test\n"
+                "clear  - Close all windows");
         }
     } else if (command_buffer[0] == 'a' && command_buffer[1] == 'b' &&
                command_buffer[2] == 'o' && command_buffer[3] == 'u' && 
                command_buffer[4] == 't') {
-        int win = create_window("About", 15, 8, 50, 10);
+        int win = create_window("About OpenComp", 15, 8, 50, 10);
         if (win >= 0) {
             set_window_content(win,
                 "OpenComp Kernel v0.1\n"
-                "A component-based OS\n"
+                "A component-based OS\n\n"
                 "Licensed under GPLv2\n"
-                "Copyright 2025 B.Nova J.");
+                "Copyright 2025 B.Nova J.\n\n"
+                "github.com/misumuse");
         }
     } else if (command_buffer[0] == 'm' && command_buffer[1] == 'e' && 
                command_buffer[2] == 'm') {
-        int win = create_window("Memory", 20, 10, 40, 8);
+        int win = create_window("Memory Status", 20, 10, 40, 9);
         if (win >= 0) {
             char buf[128];
             char num[32];
@@ -196,10 +202,71 @@ static void handle_command(void) {
             str_append(buf, "Free pages: ");
             itoa_u(get_free_pages(), num);
             str_append(buf, num);
-            str_append(buf, "\nFree memory: ");
+            str_append(buf, "\n\nFree memory: ");
             itoa_u(get_free_pages() * 4, num);
             str_append(buf, num);
+            str_append(buf, " KB\n\nUsed: ");
+            itoa_u((4096 - get_free_pages()) * 4, num);
+            str_append(buf, num);
             str_append(buf, " KB");
+            set_window_content(win, buf);
+        }
+    } else if (command_buffer[0] == 't' && command_buffer[1] == 'i' &&
+               command_buffer[2] == 'm' && command_buffer[3] == 'e') {
+        int win = create_window("System Uptime", 25, 12, 35, 8);
+        if (win >= 0) {
+            char buf[128];
+            char num[32];
+            buf[0] = 0;
+            str_append(buf, "Uptime:\n\n");
+            itoa_u(uptime_ticks / 100, num);
+            str_append(buf, num);
+            str_append(buf, " seconds\n\n");
+            itoa_u(uptime_ticks, num);
+            str_append(buf, num);
+            str_append(buf, " ticks");
+            set_window_content(win, buf);
+        }
+    } else if (command_buffer[0] == 'c' && command_buffer[1] == 'o' &&
+               command_buffer[2] == 'l' && command_buffer[3] == 'o' &&
+               command_buffer[4] == 'r' && command_buffer[5] == 's') {
+        int win = create_window("Color Test", 5, 4, 70, 18);
+        if (win >= 0) {
+            set_window_content(win,
+                "VGA Text Mode Colors:\n\n"
+                "Black, Blue, Green, Cyan\n"
+                "Red, Magenta, Brown, Gray\n\n"
+                "Light versions available\n"
+                "with high intensity bit\n\n"
+                "16 colors total\n"
+                "80x25 resolution");
+        }
+    } else if (command_buffer[0] == 'i' && command_buffer[1] == 'n' &&
+               command_buffer[2] == 'f' && command_buffer[3] == 'o') {
+        int win = create_window("System Information", 12, 6, 55, 13);
+        if (win >= 0) {
+            set_window_content(win,
+                "OpenComp Kernel\n\n"
+                "Architecture: x86 (32-bit)\n"
+                "Boot: Multiboot2/GRUB\n"
+                "Display: VGA Text 80x25\n"
+                "Memory: 16MB managed\n"
+                "Components: 3 active\n\n"
+                "Keyboard: PS/2 driver\n"
+                "Desktop: Active");
+        }
+    } else if (command_buffer[0] == 'e' && command_buffer[1] == 'c' &&
+               command_buffer[2] == 'h' && command_buffer[3] == 'o') {
+        int win = create_window("Echo", 18, 9, 45, 7);
+        if (win >= 0) {
+            char buf[128];
+            buf[0] = 0;
+            str_append(buf, "You typed:\n\n");
+            for (size_t i = 5; i < command_len && i < 100; i++) {
+                if (command_buffer[i] == ' ') continue;
+                buf[i-3] = command_buffer[i];
+                buf[i-2] = 0;
+            }
             set_window_content(win, buf);
         }
     } else if (command_buffer[0] == 'c' && command_buffer[1] == 'l' &&
@@ -210,6 +277,14 @@ static void handle_command(void) {
             windows[i].active = 0;
         }
         active_window = -1;
+    } else {
+        // Unknown command
+        int win = create_window("Error", 22, 11, 36, 6);
+        if (win >= 0) {
+            set_window_content(win,
+                "Unknown command!\n\n"
+                "Type 'help' for list");
+        }
     }
     
     command_len = 0;
@@ -237,6 +312,9 @@ static void desktop_init(void) {
 static int tick_counter = 0;
 
 static void desktop_tick(void) {
+    // Increment uptime counter
+    uptime_ticks++;
+    
     // Only redraw every 50 ticks to reduce flicker
     if ((tick_counter++ % 50) == 0) {
         draw_desktop();
