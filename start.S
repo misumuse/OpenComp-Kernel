@@ -34,11 +34,7 @@ _start:
     cli
     
     /* Set up stack (64-bit) */
-    mov $stack_top, %rsp
-    
-    /* Reset EFLAGS */
-    push $0
-    popf
+    movq $stack_top, %rsp
     
     /* Call kernel main */
     call kernel_main
