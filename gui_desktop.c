@@ -108,7 +108,7 @@ static void draw_taskbar(void) {
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
     
     // Draw keyboard help
-    vga_draw_string(165, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch Q+WASD:Move", COLOR_TITLEBAR_TEXT);
+    vga_draw_string(180, 200 - TASKBAR_HEIGHT + 4, "Tab:Switch WASD:Move", COLOR_TITLEBAR_TEXT);
     
     // Draw window buttons in taskbar
     int btn_x = 80;
@@ -225,19 +225,10 @@ static int point_in_rect(int px, int py, int x, int y, int w, int h) {
 }
 
 // Handle keyboard input
-static int ctrl_held = 0;
-
 static void handle_keyboard(void) {
     if (!keyboard_has_key()) return;
     
     char key = keyboard_get_key();
-    
-    // Track Ctrl key (using 'q' as Ctrl since real Ctrl is hard to detect)
-    // User holds Q then presses arrows
-    if (key == 'q' || key == 'Q') {
-        ctrl_held = 1;
-        return;
-    }
     
     // Tab - cycle through windows
     if (key == '\t') {
@@ -268,46 +259,39 @@ static void handle_keyboard(void) {
         return;
     }
     
-    if (active_window < 0) {
-        ctrl_held = 0;
-        return;
-    }
+    if (active_window < 0) return;
     
     GUIWindow *w = &windows[active_window];
     
-    // Ctrl + Arrow keys - move window
-    if (ctrl_held) {
-        if (key == 'w' || key == 'W') {
-            w->y -= 10;
-            if (w->y < 0) w->y = 0;
-            needs_redraw = 1;
-        } else if (key == 's' || key == 'S') {
-            w->y += 10;
-            if (w->y + w->height > 200 - TASKBAR_HEIGHT) 
-                w->y = 200 - TASKBAR_HEIGHT - w->height;
-            needs_redraw = 1;
-        } else if (key == 'a' || key == 'A') {
-            w->x -= 10;
-            if (w->x < 0) w->x = 0;
-            needs_redraw = 1;
-        } else if (key == 'd' || key == 'D') {
-            w->x += 10;
-            if (w->x + w->width > 320) w->x = 320 - w->width;
-            needs_redraw = 1;
-        }
-        ctrl_held = 0;  // Reset after use
-        return;
+    // Direct WASD controls for moving windows (no Q needed)
+    if (key == 'w' || key == 'W') {
+        w->y -= 5;
+        if (w->y < 0) w->y = 0;
+        needs_redraw = 1;
+    } else if (key == 's' || key == 'S') {
+        w->y += 5;
+        if (w->y + w->height > 200 - TASKBAR_HEIGHT) 
+            w->y = 200 - TASKBAR_HEIGHT - w->height;
+        needs_redraw = 1;
+    } else if (key == 'a' || key == 'A') {
+        w->x -= 5;
+        if (w->x < 0) w->x = 0;
+        needs_redraw = 1;
+    } else if (key == 'd' || key == 'D') {
+        w->x += 5;
+        if (w->x + w->width > 320) w->x = 320 - w->width;
+        needs_redraw = 1;
     }
     
     // Space - open command window
-    if (key == ' ') {
+    else if (key == ' ') {
         int win = create_window("Commands", 80, 60, 160, 80);
         if (win >= 0) {
             set_window_content(win,
                 "Keyboard Shortcuts:\n\n"
                 "Tab - Switch windows\n"
                 "Esc - Close window\n"
-                "Q+WASD - Move window\n"
+                "WASD - Move window\n"
                 "Space - Commands\n"
                 "H - Help\n"
                 "M - Memory\n"
@@ -323,9 +307,8 @@ static void handle_keyboard(void) {
             set_window_content(win,
                 "OpenComp Desktop Help\n\n"
                 "Tab switches windows.\n\n"
-                "To move a window:\n"
-                "1. Press Q (like Ctrl)\n"
-                "2. Press W/A/S/D\n\n"
+                "WASD moves the active\n"
+                "window around.\n\n"
                 "Esc closes windows.\n\n"
                 "Space shows commands.");
         }
@@ -403,7 +386,7 @@ static void gui_desktop_init(void) {
             "Press H for help\n"
             "Press Space for menu\n\n"
             "Move windows:\n"
-            "Press Q then WASD");
+            "Just use WASD keys!");
     }
     
     // Create info window
