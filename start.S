@@ -33,11 +33,11 @@ _start:
     /* Disable interrupts */
     cli
     
-    /* Set up stack */
-    mov $stack_top, %esp
+    /* Set up stack (64-bit) */
+    mov $stack_top, %rsp
     
     /* Reset EFLAGS */
-    pushl $0
+    push $0
     popf
     
     /* Call kernel main */
