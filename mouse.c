@@ -19,6 +19,12 @@ static uint8_t mouse_buttons = 0;
 static uint8_t mouse_cycle = 0;
 static uint8_t mouse_byte[3];
 
+// Mouse smoothing
+static float mouse_x_float = 160.0f;
+static float mouse_y_float = 100.0f;
+static float velocity_x = 0.0f;
+static float velocity_y = 0.0f;
+
 static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
 }
@@ -132,15 +138,35 @@ static void mouse_tick(void) {
             if (mouse_byte[0] & 0x40) dx = 0;  // X overflow
             if (mouse_byte[0] & 0x80) dy = 0;  // Y overflow
             
-            // Option 8: Swapped axes, both inverted
-            mouse_x += dy;
-            mouse_y += dx;
+            // Apply acceleration curve
+            float move_x = (float)dy;
+            float move_y = (float)dx;
             
-            // Clamp to screen
-            if (mouse_x < 0) mouse_x = 0;
-            if (mouse_x > 319) mouse_x = 319;
-            if (mouse_y < 0) mouse_y = 0;
-            if (mouse_y > 199) mouse_y = 199;
+            // Acceleration: faster movement = more speed
+            float speed = move_x * move_x + move_y * move_y;
+            if (speed > 100.0f) {
+                float mult = 1.5f;
+                move_x *= mult;
+                move_y *= mult;
+            }
+            
+            // Smoothing: blend old velocity with new
+            velocity_x = velocity_x * 0.3f + move_x * 0.7f;
+            velocity_y = velocity_y * 0.3f + move_y * 0.7f;
+            
+            // Update float position
+            mouse_x_float += velocity_x;
+            mouse_y_float += velocity_y;
+            
+            // Clamp float position
+            if (mouse_x_float < 0.0f) mouse_x_float = 0.0f;
+            if (mouse_x_float > 319.0f) mouse_x_float = 319.0f;
+            if (mouse_y_float < 0.0f) mouse_y_float = 0.0f;
+            if (mouse_y_float > 199.0f) mouse_y_float = 199.0f;
+            
+            // Convert to integer
+            mouse_x = (int)mouse_x_float;
+            mouse_y = (int)mouse_y_float;
             
             break;
     }
