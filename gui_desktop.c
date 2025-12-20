@@ -119,10 +119,10 @@ static void draw_window(int idx) {
     }
     
     // Draw close button
-    int cx = w->x + w->width - 12;
-    vga_fill_rect(cx, w->y + 2, 10, 8, COLOR_BUTTON);
-    vga_draw_rect(cx, w->y + 2, 10, 8, COLOR_BORDER);
-    vga_draw_char(cx + 1, w->y + 2, 'X', COLOR_TEXT);
+    int close_x = w->x + w->width - 12;
+    vga_fill_rect(close_x, w->y + 2, 10, 8, COLOR_BUTTON);
+    vga_draw_rect(close_x, w->y + 2, 10, 8, COLOR_BORDER);
+    vga_draw_char(close_x + 1, w->y + 2, 'X', COLOR_TEXT);
     
     // Draw content area
     vga_fill_rect(w->x, w->y + TITLEBAR_HEIGHT, w->width, 
@@ -131,25 +131,25 @@ static void draw_window(int idx) {
                   w->height - TITLEBAR_HEIGHT, COLOR_BORDER);
     
     // Draw content
-    int cx = w->x + 4;
-    int cy = w->y + TITLEBAR_HEIGHT + 4;
+    int content_x = w->x + 4;
+    int content_y = w->y + TITLEBAR_HEIGHT + 4;
     int max_chars = (w->width - 8) / 8;
     
-    for (int i = 0; w->content[i] && cy < w->y + w->height - 8; i++) {
+    for (int i = 0; w->content[i] && content_y < w->y + w->height - 8; i++) {
         if (w->content[i] == '\n') {
-            cy += 10;
-            cx = w->x + 4;
+            content_y += 10;
+            content_x = w->x + 4;
         } else {
-            int pos = (cx - (w->x + 4)) / 8;
+            int pos = (content_x - (w->x + 4)) / 8;
             if (pos < max_chars) {
-                vga_draw_char(cx, cy, w->content[i], COLOR_TEXT);
-                cx += 8;
+                vga_draw_char(content_x, content_y, w->content[i], COLOR_TEXT);
+                content_x += 8;
             } else {
-                cy += 10;
-                cx = w->x + 4;
-                if (cy < w->y + w->height - 8) {
-                    vga_draw_char(cx, cy, w->content[i], COLOR_TEXT);
-                    cx += 8;
+                content_y += 10;
+                content_x = w->x + 4;
+                if (content_y < w->y + w->height - 8) {
+                    vga_draw_char(content_x, content_y, w->content[i], COLOR_TEXT);
+                    content_x += 8;
                 }
             }
         }
