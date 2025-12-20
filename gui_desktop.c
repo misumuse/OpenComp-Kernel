@@ -47,15 +47,54 @@ extern void vga_draw_string(int x, int y, const char *str, uint8_t color);
 extern void mouse_get_position(int *x, int *y);
 extern uint8_t mouse_get_buttons(void);
 
-// Draw mouse cursor
+// Draw mouse cursor (larger, more visible)
 static void draw_cursor(int x, int y) {
-    // Simple arrow cursor (11x16)
-    for (int dy = 0; dy < 11 && y + dy < 200; dy++) {
-        for (int dx = 0; dx < 11 - dy && x + dx < 320; dx++) {
-            if (dx == 0 || dy == 0 || dx == 11 - dy - 1) {
-                vga_setpixel(x + dx, y + dy, COLOR_BORDER);
-            } else {
+    // Larger arrow cursor (15x18) with border for visibility
+    const int cursor_data[18] = {
+        0b111100000000000,
+        0b110110000000000,
+        0b110011000000000,
+        0b110001100000000,
+        0b110000110000000,
+        0b110000011000000,
+        0b110000001100000,
+        0b110000000110000,
+        0b110000000011000,
+        0b110000110001100,
+        0b110001111000110,
+        0b110011001100011,
+        0b110110000110001,
+        0b111100000011000,
+        0b110000000001100,
+        0b000000000000110,
+        0b000000000000011,
+        0b000000000000000,
+    };
+    
+    for (int dy = 0; dy < 18 && y + dy < 200; dy++) {
+        for (int dx = 0; dx < 15 && x + dx < 320; dx++) {
+            if (cursor_data[dy] & (1 << (14 - dx))) {
+                // Draw white pixel
                 vga_setpixel(x + dx, y + dy, COLOR_CURSOR);
+            }
+        }
+    }
+    
+    // Draw black border around cursor for visibility
+    for (int dy = 0; dy < 18 && y + dy < 200; dy++) {
+        for (int dx = 0; dx < 15 && x + dx < 320; dx++) {
+            int is_cursor = cursor_data[dy] & (1 << (14 - dx));
+            if (is_cursor) {
+                // Check if edge pixel (has non-cursor neighbor)
+                int is_edge = 0;
+                if (dx == 0 || !(cursor_data[dy] & (1 << (15 - dx)))) is_edge = 1;
+                if (dx == 14 || !(cursor_data[dy] & (1 << (13 - dx)))) is_edge = 1;
+                if (dy == 0 || !(cursor_data[dy-1] & (1 << (14 - dx)))) is_edge = 1;
+                if (dy == 17 || !(cursor_data[dy+1] & (1 << (14 - dx)))) is_edge = 1;
+                
+                if (is_edge) {
+                    vga_setpixel(x + dx, y + dy, COLOR_BORDER);
+                }
             }
         }
     }
