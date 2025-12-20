@@ -37,8 +37,11 @@ void vga_putchar_at(int x, int y, char c, uint8_t color) {
 }
 
 void vga_clear(uint8_t color) {
-    for (size_t i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
-        vga[i] = ((uint16_t)color << 8) | ' ';
+    for (size_t y = 0; y < VGA_HEIGHT; y++) {
+        for (size_t x = 0; x < VGA_WIDTH; x++) {
+            size_t index = y * VGA_WIDTH + x;
+            vga[index] = ((uint16_t)color << 8) | ' ';
+        }
     }
     vga_row = 0;
     vga_col = 0;
