@@ -17,7 +17,7 @@ static int mouse_x = 160;  // Center of 320x200
 static int mouse_y = 100;
 static uint8_t mouse_buttons = 0;
 static uint8_t mouse_cycle = 0;
-static int8_t mouse_byte[3];
+static uint8_t mouse_byte[3];
 
 static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
@@ -88,6 +88,9 @@ static void mouse_init(void) {
     mouse_write(0xF4);
     mouse_read();
     
+    // Reset cycle
+    mouse_cycle = 0;
+    
     puts("[mouse] PS/2 mouse driver initialized\n");
 }
 
@@ -100,39 +103,40 @@ static void mouse_tick(void) {
     
     switch (mouse_cycle) {
         case 0:
-            if ((data & 0x08) == 0) break; // Not valid packet start
+            // First byte must have bit 3 set
+            if ((data & 0x08) == 0) {
+                // Invalid packet, stay at cycle 0
+                break;
+            }
             mouse_byte[0] = data;
-            mouse_cycle++;
+            mouse_cycle = 1;
             break;
+            
         case 1:
             mouse_byte[1] = data;
-            mouse_cycle++;
+            mouse_cycle = 2;
             break;
+            
         case 2:
             mouse_byte[2] = data;
             mouse_cycle = 0;
             
-            // Process packet
+            // Process complete packet
             mouse_buttons = mouse_byte[0] & 0x07;
             
-            // Get raw deltas (signed 9-bit values)
-            int dx = mouse_byte[1];
-            int dy = mouse_byte[2];
+            // Extract movement (convert from uint8_t to signed int)
+            int8_t dx = (int8_t)mouse_byte[1];
+            int8_t dy = (int8_t)mouse_byte[2];
             
-            // Sign extension for negative values
-            if (mouse_byte[0] & 0x10) dx -= 256;
-            if (mouse_byte[0] & 0x20) dy -= 256;
+            // Check for overflow flags
+            if (mouse_byte[0] & 0x40) dx = 0;  // X overflow
+            if (mouse_byte[0] & 0x80) dy = 0;  // Y overflow
             
-            // Apply sensitivity scaling (adjust these values to tune)
-            // Smaller divisor = faster, larger = slower
-            dx = (dx * 3) / 4;  // 75% speed
-            dy = (dy * 3) / 4;
-            
-            // Update position with proper Y inversion
+            // Apply movement (no sensitivity adjustment for now)
             mouse_x += dx;
-            mouse_y -= dy;  // PS/2 Y is inverted from screen Y
+            mouse_y -= dy;  // Y is inverted
             
-            // Clamp to screen bounds
+            // Clamp to screen
             if (mouse_x < 0) mouse_x = 0;
             if (mouse_x > 319) mouse_x = 319;
             if (mouse_y < 0) mouse_y = 0;
