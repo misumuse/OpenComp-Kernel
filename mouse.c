@@ -132,9 +132,10 @@ static void mouse_tick(void) {
             if (mouse_byte[0] & 0x40) dx = 0;  // X overflow
             if (mouse_byte[0] & 0x80) dy = 0;  // Y overflow
             
-            // Apply movement (no sensitivity adjustment for now)
-            mouse_x += dx;
-            mouse_y -= dy;  // Y is inverted
+            // Apply movement - FIXED: dx affects Y, dy affects X (they're swapped!)
+            // Also both need to be inverted
+            mouse_x -= dy;  // Y movement controls X (inverted)
+            mouse_y -= dx;  // X movement controls Y (inverted)
             
             // Clamp to screen
             if (mouse_x < 0) mouse_x = 0;
