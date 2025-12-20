@@ -349,6 +349,54 @@ static void handle_keyboard(void) {
         }
         needs_redraw = 1;
     }
+    
+    // F - File Browser
+    else if (key == 'f' || key == 'F') {
+        int win = create_window("Files", 30, 20, 260, 140);
+        if (win >= 0) {
+            char buf[512];
+            buf[0] = 0;
+            
+            int file_count = fs_get_file_count();
+            str_append(buf, "File Browser\n\n");
+            str_append(buf, "Files: ");
+            char num[16];
+            itoa_u(file_count, num);
+            str_append(buf, num);
+            str_append(buf, "\n\n");
+            
+            // List files
+            for (int i = 0; i < file_count && i < 10; i++) {
+                char name[128];
+                uint32_t size;
+                int is_dir;
+                
+                if (fs_get_file_info(i, name, &size, &is_dir)) {
+                    if (is_dir) {
+                        str_append(buf, "[DIR] ");
+                    } else {
+                        str_append(buf, "      ");
+                    }
+                    
+                    // Add filename (truncate if too long)
+                    int j = 0;
+                    while (name[j] && j < 20) {
+                        buf[buf[0] ? (int)(buf + 512 - buf - 1) : 0] = name[j];
+                        j++;
+                    }
+                    
+                    str_append(buf, "\n");
+                }
+            }
+            
+            if (file_count > 10) {
+                str_append(buf, "\n...more files...");
+            }
+            
+            set_window_content(win, buf);
+        }
+        needs_redraw = 1;
+    }
 }
 
 // Redraw everything
