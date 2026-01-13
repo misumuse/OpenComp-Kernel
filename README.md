@@ -5,7 +5,7 @@ OpenComp is an educational component-based kernel featuring a simple text-mode d
 ![License](https://img.shields.io/badge/license-GPLv2-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-x86--64-lightgrey.svg)
 ![Build](https://img.shields.io/badge/build-multiboot2-green.svg)
-
+Note: Images may be outdated and/or completely different from the current release, development is quick.
 ## Features
 
 - **Component Architecture**: Modular design where features are self-contained components
@@ -31,7 +31,7 @@ make run
 
 ## Screenshots
 
-*Text-mode desktop with windowing system*
+*Legacy Text-mode desktop with windowing system*
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
