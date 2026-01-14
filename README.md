@@ -11,8 +11,8 @@ Note: Images may be outdated and/or completely different from the current releas
 - **Component Architecture**: Modular design where features are self-contained components
 - **Memory Management**: Bitmap-based physical page allocator managing 16MB
 - **Keyboard Driver**: PS/2 keyboard input with scancode translation
-- **Desktop Environment**: Text-mode windowing system with command interface
-- **VGA Display**: Enhanced text-mode graphics with color support
+- **Desktop Environment**: Basic windowing system with command interface
+- **VGA Display**: Enhanced VGA graphics with color support
 - **Multiboot2 Compliant**: Boots with GRUB2 bootloader
 
 ## Quick Start
