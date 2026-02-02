@@ -496,5 +496,3 @@ make clean && make run
 - [GRUB Manual](https://www.gnu.org/software/grub/manual/) - Bootloader documentation
 
 ---
-
-Welcome to OpenComp! Happy kernel hacking! 🚀
