@@ -204,8 +204,8 @@ Feel free to open an issue with the "question" label if you need help or clarifi
 
 ## Community
 
-Be respectful and constructive. We're all here to learn and build something cool together!
+Be respectful and constructive.
 
 ---
 
-Thank you for contributing to OpenComp! 🚀
+Thank you for contributing to OpenComp.
