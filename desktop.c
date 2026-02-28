@@ -25,13 +25,81 @@ typedef struct {
 
 static Window windows[MAX_WINDOWS];
 static int active_window = -1;
-static int cursor_x = 0, cursor_y = 0;
 static char command_buffer[64];
 static size_t command_len = 0;
 
 extern int keyboard_has_key(void);
 extern char keyboard_get_key(void);
 extern uint64_t get_free_pages(void);
+
+static int str_eq(const char *a, const char *b) {
+    int i = 0;
+    while (a[i] && b[i]) {
+        if (a[i] != b[i]) return 0;
+        i++;
+    }
+    return a[i] == 0 && b[i] == 0;
+}
+
+static int starts_with(const char *str, const char *prefix) {
+    int i = 0;
+    while (prefix[i]) {
+        if (str[i] != prefix[i]) return 0;
+        i++;
+    }
+    return 1;
+}
+
+static int count_active_windows(void) {
+    int count = 0;
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+        if (windows[i].active) count++;
+    }
+    return count;
+}
+
+static int close_active_window(void) {
+    if (active_window < 0 || active_window >= MAX_WINDOWS || !windows[active_window].active) {
+        return 0;
+    }
+
+    windows[active_window].active = 0;
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+        if (windows[i].active) {
+            active_window = i;
+            return 1;
+        }
+    }
+    active_window = -1;
+    return 1;
+}
+
+static int cycle_active_window(int dir) {
+    if (count_active_windows() == 0) {
+        active_window = -1;
+        return 0;
+    }
+
+    if (active_window < 0 || !windows[active_window].active) {
+        for (int i = 0; i < MAX_WINDOWS; i++) {
+            if (windows[i].active) {
+                active_window = i;
+                return 1;
+            }
+        }
+    }
+
+    int idx = active_window;
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+        idx = (idx + dir + MAX_WINDOWS) % MAX_WINDOWS;
+        if (windows[idx].active) {
+            active_window = idx;
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 static void draw_box(int x, int y, int w, int h, uint8_t color) {
     for (int row = 0; row < h; row++) {
@@ -107,6 +175,14 @@ static void draw_desktop(void) {
         draw_window(i);
     }
     
+    // Draw status line
+    const char *status = "TAB: next win | close: close active | clear: close all";
+    for (int i = 0; i < 80; i++) {
+        char c = ' ';
+        if (status[i] && i < 57) c = status[i];
+        vga_putchar_at(i, 23, c, 0x1E);
+    }
+
     // Draw command line at bottom
     const char *prompt = "CMD> ";
     for (int i = 0; i < 5; i++) {
@@ -165,8 +241,7 @@ static void handle_command(void) {
     command_buffer[command_len] = 0;
     
     // Parse command
-    if (command_buffer[0] == 'h' && command_buffer[1] == 'e' && 
-        command_buffer[2] == 'l' && command_buffer[3] == 'p') {
+    if (str_eq(command_buffer, "help")) {
         int win = create_window("Help", 10, 5, 60, 16);
         if (win >= 0) {
             set_window_content(win, 
@@ -177,12 +252,14 @@ static void handle_command(void) {
                 "time   - Show uptime\n"
                 "colors - Color test\n"
                 "info   - System info\n"
-                "echo   - Echo test\n"
+                "echo X - Print text X\n"
+                "windows- Window summary\n"
+                "next   - Focus next window\n"
+                "prev   - Focus previous\n"
+                "close  - Close active window\n"
                 "clear  - Close all windows");
         }
-    } else if (command_buffer[0] == 'a' && command_buffer[1] == 'b' &&
-               command_buffer[2] == 'o' && command_buffer[3] == 'u' && 
-               command_buffer[4] == 't') {
+    } else if (str_eq(command_buffer, "about")) {
         int win = create_window("About OpenComp", 15, 8, 50, 10);
         if (win >= 0) {
             set_window_content(win,
@@ -192,8 +269,7 @@ static void handle_command(void) {
                 "Copyright 2025 B.Nova J.\n\n"
                 "github.com/misumuse");
         }
-    } else if (command_buffer[0] == 'm' && command_buffer[1] == 'e' && 
-               command_buffer[2] == 'm') {
+    } else if (str_eq(command_buffer, "mem")) {
         int win = create_window("Memory Status", 20, 10, 40, 9);
         if (win >= 0) {
             char buf[128];
@@ -211,8 +287,7 @@ static void handle_command(void) {
             str_append(buf, " KB");
             set_window_content(win, buf);
         }
-    } else if (command_buffer[0] == 't' && command_buffer[1] == 'i' &&
-               command_buffer[2] == 'm' && command_buffer[3] == 'e') {
+    } else if (str_eq(command_buffer, "time")) {
         int win = create_window("System Uptime", 25, 12, 35, 8);
         if (win >= 0) {
             char buf[128];
@@ -227,9 +302,7 @@ static void handle_command(void) {
             str_append(buf, " ticks");
             set_window_content(win, buf);
         }
-    } else if (command_buffer[0] == 'c' && command_buffer[1] == 'o' &&
-               command_buffer[2] == 'l' && command_buffer[3] == 'o' &&
-               command_buffer[4] == 'r' && command_buffer[5] == 's') {
+    } else if (str_eq(command_buffer, "colors")) {
         int win = create_window("Color Test", 5, 4, 70, 18);
         if (win >= 0) {
             set_window_content(win,
@@ -241,8 +314,7 @@ static void handle_command(void) {
                 "16 colors total\n"
                 "80x25 resolution");
         }
-    } else if (command_buffer[0] == 'i' && command_buffer[1] == 'n' &&
-               command_buffer[2] == 'f' && command_buffer[3] == 'o') {
+    } else if (str_eq(command_buffer, "info")) {
         int win = create_window("System Information", 12, 6, 55, 13);
         if (win >= 0) {
             set_window_content(win,
@@ -255,23 +327,53 @@ static void handle_command(void) {
                 "Keyboard: PS/2 driver\n"
                 "Desktop: Active");
         }
-    } else if (command_buffer[0] == 'e' && command_buffer[1] == 'c' &&
-               command_buffer[2] == 'h' && command_buffer[3] == 'o') {
+    } else if (starts_with(command_buffer, "echo")) {
         int win = create_window("Echo", 18, 9, 45, 7);
         if (win >= 0) {
             char buf[128];
+            const char *msg = command_buffer + 4;
+            while (*msg == ' ') msg++;
+
             buf[0] = 0;
             str_append(buf, "You typed:\n\n");
-            for (size_t i = 5; i < command_len && i < 100; i++) {
-                if (command_buffer[i] == ' ') continue;
-                buf[i-3] = command_buffer[i];
-                buf[i-2] = 0;
+            if (*msg) {
+                str_append(buf, msg);
+            } else {
+                str_append(buf, "(nothing)");
             }
             set_window_content(win, buf);
         }
-    } else if (command_buffer[0] == 'c' && command_buffer[1] == 'l' &&
-               command_buffer[2] == 'e' && command_buffer[3] == 'a' &&
-               command_buffer[4] == 'r') {
+    } else if (str_eq(command_buffer, "windows")) {
+        int win = create_window("Window Manager", 18, 8, 45, 10);
+        if (win >= 0) {
+            char buf[160];
+            char num[32];
+            buf[0] = 0;
+            str_append(buf, "Desktop status\n\nActive windows: ");
+            itoa_u((uint64_t)count_active_windows(), num);
+            str_append(buf, num);
+            str_append(buf, "\nFocused index: ");
+            if (active_window >= 0) {
+                itoa_u((uint64_t)active_window, num);
+                str_append(buf, num);
+            } else {
+                str_append(buf, "none");
+            }
+            str_append(buf, "\n\nTips:\n- next / prev\n- close / clear");
+            set_window_content(win, buf);
+        }
+    } else if (str_eq(command_buffer, "next")) {
+        cycle_active_window(1);
+    } else if (str_eq(command_buffer, "prev")) {
+        cycle_active_window(-1);
+    } else if (str_eq(command_buffer, "close")) {
+        if (!close_active_window()) {
+            int win = create_window("Window Manager", 22, 11, 36, 6);
+            if (win >= 0) {
+                set_window_content(win, "No active window to close.");
+            }
+        }
+    } else if (str_eq(command_buffer, "clear")) {
         // Close all windows
         for (int i = 0; i < MAX_WINDOWS; i++) {
             windows[i].active = 0;
@@ -283,7 +385,8 @@ static void handle_command(void) {
         if (win >= 0) {
             set_window_content(win,
                 "Unknown command!\n\n"
-                "Type 'help' for list");
+                "Type 'help' for list\n"
+                "Try: windows");
         }
     }
     
@@ -330,6 +433,9 @@ static void desktop_tick(void) {
         } else if (c == '\b') {
             if (command_len > 0) command_len--;
             draw_desktop(); // Redraw immediately after backspace
+        } else if (c == '\t') {
+            cycle_active_window(1);
+            draw_desktop();
         } else if (command_len < 63) {
             command_buffer[command_len++] = c;
             draw_desktop(); // Redraw immediately after character
