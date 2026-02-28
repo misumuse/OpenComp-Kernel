@@ -11,9 +11,10 @@ Note: Images may be outdated and/or completely different from the current releas
 - **Component Architecture**: Modular design where features are self-contained components
 - **Memory Management**: Bitmap-based physical page allocator managing 16MB
 - **Keyboard Driver**: PS/2 keyboard input with scancode translation
-- **Desktop Environment**: Basic windowing system with command interface
+- **Desktop Environment**: Basic windowing system with Linux-like shortcuts and terminal-style window
 - **VGA Display**: Enhanced VGA graphics with color support
 - **Multiboot2 Compliant**: Boots with GRUB2 bootloader
+- **Dual ISO Output**: Builds both 32-bit and experimental x86_64 ISOs
 
 ## Quick Start
 
@@ -75,8 +76,9 @@ sudo apt-get install gcc-x86-64-linux-gnu
 ### Compilation
 
 ```bash
-make              # Build the kernel
-make run          # Build and run in QEMU
+make              # Build 32-bit + x86_64 experimental kernels
+make run          # Build and run 32-bit ISO in QEMU
+make run64        # Build and run x86_64 experimental ISO in QEMU
 make clean        # Clean build artifacts
 ```
 

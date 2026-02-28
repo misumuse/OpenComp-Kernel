@@ -42,6 +42,9 @@ extern void vga_draw_rect(int x, int y, int w, int h, uint8_t color);
 extern void vga_draw_string(int x, int y, const char *str, uint8_t color);
 extern void vga_draw_char(int x, int y, char c, uint8_t color);
 
+static int create_window(const char *title, int x, int y, int w, int h);
+static void set_window_content(int idx, const char *content);
+
 // Helper function to append string safely
 static void safe_append(char *dest, const char *src, int max) {
     int len = 0;
@@ -53,10 +56,34 @@ static void safe_append(char *dest, const char *src, int max) {
     dest[len] = 0;
 }
 
-// Draw a box
-static void draw_box(int x, int y, int w, int h, uint8_t color) {
-    vga_fill_rect(x, y, w, h, color);
-    vga_draw_rect(x, y, w, h, COLOR_BORDER);
+
+static void open_terminal_window(void) {
+    int win = create_window("Terminal", 20, 20, 280, 150);
+    if (win >= 0) {
+        char buf[512] = "OpenComp Shell (Linux-style)\n";
+        safe_append(buf, "opencomp@localhost:~$ uname -a\n", 512);
+        safe_append(buf, "OpenComp 0.2 x86_64-compatible\n\n", 512);
+        safe_append(buf, "opencomp@localhost:~$ ls /\n", 512);
+
+        int count = fs_get_file_count();
+        for (int i = 0; i < count && i < 6; i++) {
+            char name[128];
+            uint32_t size;
+            int is_dir;
+            if (fs_get_file_info(i, name, &size, &is_dir)) {
+                safe_append(buf, name, 512);
+                safe_append(buf, "  ", 512);
+            }
+        }
+
+        safe_append(buf, "\n\nopencomp@localhost:~$ free -k\n", 512);
+        safe_append(buf, "Mem: ", 512);
+        char num[32];
+        itoa_u(get_free_pages() * 4, num);
+        safe_append(buf, num, 512);
+        safe_append(buf, "KB free\n", 512);
+        set_window_content(win, buf);
+    }
 }
 
 // Create a new window
@@ -161,7 +188,7 @@ static void draw_window(int idx) {
 static void draw_taskbar(void) {
     vga_fill_rect(0, 200 - TASKBAR_HEIGHT, 320, TASKBAR_HEIGHT, COLOR_TASKBAR);
     vga_draw_string(4, 200 - TASKBAR_HEIGHT + 4, "OpenComp", COLOR_TITLEBAR_TEXT);
-    vga_draw_string(175, 200 - TASKBAR_HEIGHT + 4, "E:Menu X:Close", COLOR_TITLEBAR_TEXT);
+    vga_draw_string(145, 200 - TASKBAR_HEIGHT + 4, "E:Menu T:Term X:Close", COLOR_TITLEBAR_TEXT);
     
     if (active_window >= 0) {
         char info[16] = "Win:";
@@ -260,6 +287,7 @@ static void handle_keyboard(void) {
                 "H - Help\n"
                 "M - Memory\n"
                 "F - Files\n"
+                "T - Terminal\n"
                 "C - Calculator\n\n"
                 "Press key to open");
         }
@@ -277,7 +305,8 @@ static void handle_keyboard(void) {
                 "E - Menu\n"
                 "H - Help\n"
                 "M - Memory\n"
-                "F - Files");
+                "F - Files\n"
+                "T - Terminal");
         }
         needs_redraw = 1;
     }
@@ -290,8 +319,9 @@ static void handle_keyboard(void) {
                 "Tab switches windows\n"
                 "WASD moves windows\n"
                 "X closes windows\n"
-                "E opens menu\n\n"
-                "Press F for files");
+                "E opens menu\n"
+                "T opens terminal\n\n"
+                "Linux-like shortcuts");
         }
         needs_redraw = 1;
     }
@@ -412,6 +442,11 @@ static void handle_keyboard(void) {
         }
         needs_redraw = 1;
     }
+    // T - Terminal (Linux-like shell view)
+    else if (key == 't' || key == 'T') {
+        open_terminal_window();
+        needs_redraw = 1;
+    }
     // C - Calculator
     else if (key == 'c' || key == 'C') {
         int win = create_window("Calculator", 100, 40, 120, 90);
@@ -437,7 +472,8 @@ static void gui_desktop_init(void) {
         set_window_content(win,
             "OpenComp Desktop\n\n"
             "Press E for menu\n"
-            "Press H for help\n\n"
+            "Press H for help\n"
+            "Press T for terminal\n\n"
             "WASD moves windows");
     }
     
@@ -446,7 +482,8 @@ static void gui_desktop_init(void) {
         set_window_content(win,
             "Graphics: 320x200\n"
             "Mode: VGA 13h\n"
-            "Keyboard: PS/2\n\n"
+            "Keyboard: PS/2\n"
+            "Profile: Linux-like UX\n\n"
             "Press Tab!");
     }
     
